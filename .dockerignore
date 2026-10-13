@@ -1,0 +1,13 @@
+*
+!Dockerfile
+!requirements-web.txt
+!sandtris_c_core.c
+!sandtris_env_v10.py
+!sandtris_parameterized_bot.py
+!sandtris_lookahead_bot.py
+!web_physics.py
+!web_game.py
+!web_demo.py
+!best_clipped_weights_run2.npy
+!web/
+!web/**
