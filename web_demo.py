@@ -73,7 +73,17 @@ function renderRecord() {
   const wins = matches.filter(m => m.result === 'You win').length;
   const losses = matches.filter(m => m.result === 'AI wins').length;
   const draws = matches.filter(m => m.result === 'Draw').length;
-  $('local-record').textContent = `Your record on this browser: ${wins} wins · ${losses} losses · ${draws} draws`;
+  if ($('local-wins')) {
+    $('local-wins').textContent = wins.toLocaleString();
+    $('local-losses').textContent = losses.toLocaleString();
+    $('local-matches').textContent = matches.length.toLocaleString();
+    $('local-draws').textContent = `${draws.toLocaleString()} ${draws === 1 ? 'draw' : 'draws'}`;
+    const segments = [$('local-loss-segment'), $('local-draw-segment'), $('local-win-segment')];
+    const values = matches.length ? [losses, draws, wins] : [0, 1, 0];
+    segments.forEach((segment, index) => { segment.style.flexGrow = values[index]; });
+  } else {
+    $('local-record').textContent = `Your record on this browser: ${wins} wins · ${losses} losses · ${draws} draws`;
+  }
 }
 function showNotice() {
   const notice = (message && message !== 'Loading…' ? message : '') || state?.error || '';
@@ -87,7 +97,16 @@ updateUI = function () {
   for (const name of ['ai','human']) {
     const s = state.boards[name].stats;
     const items = [['Pieces', `${s.steps}/${state.limit}`], ['Clears', s.clears], ['Grains', s.grains.toLocaleString()], ['Clear %', `${s.clear_percentage.toFixed(1)}%`]];
-    $(name + '-stats').innerHTML = items.map(([label,value]) => `<span>${label}<b>${value}</b></span>`).join('');
+    const stats = $(name + '-stats');
+    if (stats.children.length !== items.length) {
+      stats.innerHTML = items.map(([label,value]) => `<span>${label}<b>${value}</b></span>`).join('');
+    } else {
+      items.forEach(([,value], index) => {
+        const number = stats.children[index].querySelector('b');
+        const next = String(value);
+        if (number.textContent !== next) number.textContent = next;
+      });
+    }
   }
   $('match-progress').max = state.limit;
   $('match-progress').value = Math.min(state.turn,state.limit);
@@ -136,6 +155,10 @@ updateUI();
 
 
 class DemoHandler(game.Handler):
+    def on_new_match(self, match):
+        """Extension point for associating a match with a signed-in player."""
+        pass
+
     def do_GET(self):
         path = urlparse(self.path).path
         if path == "/":
@@ -173,6 +196,7 @@ class DemoHandler(game.Handler):
                     self.server.matches.pop(next(iter(self.server.matches))).close()
                 match = DemoMatch(seed, self.server.weights)
                 self.server.matches[match.id] = match
+            self.on_new_match(match)
             self.respond(200, match.state())
         except (ValueError, TypeError) as exc:
             self.respond(400, dict(error=str(exc)))

@@ -173,6 +173,10 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_args):
         pass
 
+    def after_move(self, match, state):
+        """Extension point for recording a completed server-side match."""
+        pass
+
     def respond(self, status, payload, content_type="application/json"):
         raw = json.dumps(payload).encode() if content_type == "application/json" else payload
         compressed = len(raw) > 4096 and 'gzip' in self.headers.get('Accept-Encoding', '')
@@ -244,7 +248,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(200, match.state())
             elif self.path == "/api/move":
                 match = self.get_match(data.get("id"))
-                self.respond(200, match.move(data.get("turn"), data.get("action"), data.get("placement")))
+                state = match.move(data.get("turn"), data.get("action"), data.get("placement"))
+                self.after_move(match, state)
+                self.respond(200, state)
             else:
                 self.respond(404, dict(error="Not found"))
         except (ValueError, TypeError) as exc:

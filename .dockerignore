@@ -8,6 +8,12 @@
 !web_physics.py
 !web_game.py
 !web_demo.py
+!web_flow.py
+!web_accounts.py
 !best_clipped_weights_run2.npy
 !web/
 !web/**
+!design/
+!design/beach/
+!design/beach/assets/
+!design/beach/assets/**

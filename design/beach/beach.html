@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sand Tetris Duel · Night beach study</title>
+<style>
+:root{color-scheme:dark;--ink:#ece6f5;--muted:#c0b9d1;--line:#51475e;--surface:#15121e;--ai:hsl(265 72% 77%);--you:hsl(55 72% 77%)}*{box-sizing:border-box}body{margin:0;background:#09070f;color:var(--ink);font:12px/1.5 'SFMono-Regular',Menlo,Consolas,monospace}::selection{background:var(--you);color:#100e17}canvas,#source{position:fixed;inset:0;width:100%;height:100%;object-fit:cover}#source{display:none}body.source #source{display:block}body.source canvas{visibility:hidden}header{position:fixed;top:24px;left:28px;right:28px;display:flex;justify-content:space-between;align-items:center;gap:20px;pointer-events:none;text-shadow:0 2px 6px #000;background:#100c19e8;padding:10px 14px;border-radius:10px}h1{font:inherit;font-size:14px;margin:0;font-weight:600}header p{margin:3px 0 0;color:var(--muted)}.actions{display:flex;gap:8px;pointer-events:auto}button{font:inherit;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:var(--surface);padding:9px 13px;cursor:pointer;transition:background .15s}button:hover{background:#2b223a}button:active{background:#3b2c50}button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--you);outline-offset:4px}button:disabled{opacity:.6;cursor:wait}.toolbar{position:fixed;bottom:24px;left:28px;right:28px;display:flex;align-items:end;justify-content:space-between;gap:24px;text-shadow:0 2px 5px #000}.settings{display:flex;gap:22px;flex-wrap:wrap;background:#100c19ee;border:1px solid #41354e;padding:14px 18px;border-radius:12px}label{display:grid;grid-template-columns:1fr auto;gap:6px 14px;color:var(--muted);width:135px}output{white-space:nowrap;color:var(--ink);font-variant-numeric:tabular-nums}input{width:135px;grid-column:1/-1;accent-color:var(--ai);cursor:pointer}details{position:fixed;left:28px;bottom:132px;max-width:420px;background:#100c19f0;border:1px solid #41354e;border-radius:10px;padding:10px 14px}summary{cursor:pointer;color:var(--muted)}details p{margin:10px 0 0;line-height:1.7}a{color:var(--you);text-underline-offset:3px}.credit{max-width:270px;color:var(--muted);font-size:10px;text-align:right}.credit p{margin:0 0 6px}#error{position:fixed;top:90px;left:28px;right:28px;color:#f1c2b0;background:#1d151a;padding:12px;border-radius:8px}#error[hidden]{display:none}@media(max-width:650px){header{top:18px;left:18px;right:18px;align-items:start}header p{max-width:190px;font-size:10px}.actions{flex-direction:column}.toolbar{left:18px;right:18px;bottom:18px;display:block}.settings{gap:12px;padding:12px;justify-content:space-between}label{width:calc(50% - 6px)}input{width:100%}.credit{margin:12px 0 0;max-width:none;text-align:left}.credit p{display:none}details{left:18px;right:18px;bottom:244px;max-width:none;font-size:11px}h1{font-size:12px}}
+.palette{display:inline-flex;gap:5px;vertical-align:middle;margin-right:5px}.palette i{width:9px;height:9px;border-radius:50%;background:var(--ai)}.palette i+i{background:var(--you)}
+.settings{display:grid;grid-template-columns:repeat(5,minmax(0,135px));flex-shrink:0}.settings label{width:135px}.settings input{width:100%}
+@media(max-width:1100px){.settings{grid-template-columns:repeat(3,minmax(0,135px))}}
+@media(max-width:650px){.settings{grid-template-columns:repeat(2,minmax(0,1fr))}.settings label{width:100%}}
+</style>
+<canvas id="beach" role="img" aria-label="An animated moonlit beach formed from colored letters of the Sandtris README"></canvas>
+<video id="source" src="/assets/night-beach.mp4" poster="/assets/night-beach-poster.jpg" muted loop playsinline preload="auto" aria-hidden="true"></video>
+<header><div><h1>Sand Tetris Duel / night beach</h1><p id="status" aria-live="polite">Loading the shoreline…</p></div><div class="actions"><button id="pause" disabled>Pause</button><button id="compare" aria-pressed="false">View source</button></div></header>
+<p id="error" role="alert" hidden></p>
+<details><summary>About the letters</summary><p>The scene is built from the project's README, flattened into a continuous paragraph. Each letter stays in place while its brightness follows your beach video. The scene uses purple shades with yellow highlights, and the two hues slowly shift together. Color threshold controls where highlights turn yellow. Enlarge the letters to read the texture.</p></details>
+<div class="toolbar"><div class="settings" aria-label="Background settings">
+<label for="size">Letter size <output id="size-value">6 px</output><input id="size" type="range" min="4" max="20" value="6" step="1"></label>
+<label for="light">Brightness <output id="light-value">1.2</output><input id="light" type="range" min="0.6" max="2.4" value="1.2" step="0.1"></label>
+<label for="threshold">Color threshold <output id="threshold-value">42%</output><input id="threshold" type="range" min="0" max="1" value="0.42" step="0.01"></label>
+<label for="glow">Glow <output id="glow-value">1.5</output><input id="glow" type="range" min="0" max="1.5" value="1.5" step="0.1"></label>
+<label for="speed">Wave speed <output id="speed-value">0.75×</output><input id="speed" type="range" min="0.25" max="1.25" value="0.75" step="0.05"></label>
+</div><div class="credit"><p id="count">README text · live color</p><span class="palette" aria-hidden="true"><i></i><i></i></span> Your beach video · two shifting colors</div></div>
+<script>
+'use strict';
+(async()=>{
+const canvas=document.getElementById('beach'),video=document.getElementById('source');
+const status=document.getElementById('status'),pause=document.getElementById('pause');
+const controls=Object.fromEntries(['size','light','threshold','glow','speed'].map(id=>[id,document.getElementById(id)]));
+const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+let playing=!reduced.matches,ready=false,text='',cols=1,rows=1,frame=0,last=0,paletteTime=0,paletteLast=0;
+const gl=canvas.getContext('webgl',{alpha:false,antialias:false,preserveDrawingBuffer:true});
+function fail(message){document.getElementById('error').hidden=false;document.getElementById('error').textContent=message;}
+if(!gl){document.body.classList.add('source');fail('Text rendering is unavailable in this browser. The original beach is shown instead.');return;}
+const vs=`attribute vec2 position;varying vec2 uv;void main(){uv=vec2((position.x+1.)*.5,(1.-position.y)*.5);gl_Position=vec4(position,0.,1.);}`;
+const fs=`precision highp float;
+varying vec2 uv;uniform sampler2D scene;uniform sampler2D letters;uniform sampler2D glowLetters;uniform vec2 grid;uniform vec2 viewport;uniform vec2 videoSize;uniform float brightness;uniform float glow;uniform float threshold;uniform vec3 colorA;uniform vec3 colorB;
+vec2 sourceUV(vec2 p){
+// Match object-fit: cover, keeping the supplied landscape video undistorted.
+float va=viewport.x/viewport.y;float sa=videoSize.x/videoSize.y;
+vec2 scale=va>sa?vec2(1.,sa/va):vec2(va/sa,1.);
+return (p-.5)*scale+.5;
+}
+vec3 grade(vec2 p){
+vec3 c=texture2D(scene,sourceUV(p)).rgb;
+float y=dot(c,vec3(.2126,.7152,.0722));
+// Preserve the restored exposure and luminous range; replace only the source hue.
+float l=pow(max(y,0.),.9)*brightness*1.3;
+vec3 tint=mix(colorA,colorB,smoothstep(threshold-.16,threshold+.16,y));
+// Match the source luminance so applying the palette does not flatten its light.
+vec3 graded=tint/max(dot(tint,vec3(.2126,.7152,.0722)),.001)*l;
+return mix(graded,vec3(l),smoothstep(.35,.85,y)*.42);
+}
+
+void main(){
+vec2 center=(floor(uv*grid)+.5)/grid;
+vec3 c=grade(center);
+float ink=texture2D(letters,uv).r;
+vec3 color=c*ink;
+// A continuously blurred glyph atlas gives soft light without offset letter copies.
+vec2 d=vec2(2.5)/viewport;
+vec3 halo=vec3(0.);float totalWeight=0.;
+for(int x=-1;x<=1;x++){for(int y=-1;y<=1;y++){
+vec2 offset=vec2(float(x),float(y));
+float weight=exp(-dot(offset,offset)*.5);
+vec2 sampleUV=uv+offset*d;
+vec2 sampleCenter=(floor(sampleUV*grid)+.5)/grid;
+float softStroke=texture2D(glowLetters,sampleUV).r;
+vec3 light=max(grade(sampleCenter)-vec3(.43),vec3(0.));
+halo+=light*softStroke*weight;totalWeight+=weight;
+}}
+// Compensate for the letter texture's typical coverage while keeping a smooth fade.
+halo*=28./totalWeight;
+color+=halo*(glow*.075);
+float vignette=1.-.24*pow(length((uv-.5)*vec2(1.,.8)),1.5);
+gl_FragColor=vec4(color*vignette,1.);
+}`;
+function shader(type,source){let s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
+try{
+const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);
+const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);const pos=gl.getAttribLocation(program,'position');gl.enableVertexAttribArray(pos);gl.vertexAttribPointer(pos,2,gl.FLOAT,false,0,0);
+const loc=Object.fromEntries(['scene','letters','glowLetters','grid','viewport','videoSize','brightness','glow','threshold','colorA','colorB'].map(n=>[n,gl.getUniformLocation(program,n)]));
+function texture(unit){gl.activeTexture(gl.TEXTURE0+unit);const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);return t;}
+const scene=texture(0),letters=texture(1),glowLetters=texture(2);gl.uniform1i(loc.scene,0);gl.uniform1i(loc.letters,1);gl.uniform1i(loc.glowLetters,2);
+function resize(){document.querySelector('details').style.bottom=`${innerHeight-document.querySelector('.toolbar').getBoundingClientRect().top+16}px`;const dpr=Math.min(devicePixelRatio||1,1.5);canvas.width=Math.round(innerWidth*dpr);canvas.height=Math.round(innerHeight*dpr);gl.viewport(0,0,canvas.width,canvas.height);
+ const fontSize=+controls.size.value;cols=Math.ceil(innerWidth/(fontSize*.6));rows=Math.ceil(innerHeight/(fontSize*1.15));
+ const mask=document.createElement('canvas');mask.width=canvas.width;mask.height=canvas.height;const ctx=mask.getContext('2d');ctx.scale(dpr,dpr);ctx.fillStyle='#000';ctx.fillRect(0,0,innerWidth,innerHeight);ctx.fillStyle='#fff';ctx.font=`500 ${fontSize}px Menlo,Consolas,monospace`;ctx.textBaseline='middle';
+ // Explicit cells keep every word stable when only the footage changes.
+ let k=0;const cw=innerWidth/cols,ch=innerHeight/rows;for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){ctx.fillText(text[k++%text.length]||' ',x*cw,y*ch+ch*.48,cw);}
+ gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,letters);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,mask);// Blur the static letter mask once per resize, rather than resampling sharp copies.
+ const softMask=document.createElement('canvas');softMask.width=mask.width;softMask.height=mask.height;
+ const soft=softMask.getContext('2d');soft.filter=`blur(${Math.max(1.8,fontSize*.28)*dpr}px)`;soft.drawImage(mask,0,0);
+ gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,glowLetters);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,softMask);
+ gl.uniform2f(loc.grid,cols,rows);gl.uniform2f(loc.viewport,innerWidth,innerHeight);document.getElementById('count').textContent=`${(cols*rows).toLocaleString()} letters · Sandtris README`;draw();}
+function hsl(h,s,l){h=((h%360)+360)%360/360;const a=s*Math.min(l,1-l);return [0,8,4].map(n=>{const k=(n+h*12)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1));});}
+function palette(){const hue=265+paletteTime*.85;gl.uniform3fv(loc.colorA,hsl(hue,.72,.66));gl.uniform3fv(loc.colorB,hsl(hue+150,.72,.66));const root=document.documentElement;root.style.setProperty('--ai',`hsl(${hue} 72% 77%)`);root.style.setProperty('--you',`hsl(${hue+150} 72% 77%)`);}
+function draw(){if(!ready||gl.isContextLost())return;gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,scene);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video);gl.uniform2f(loc.videoSize,video.videoWidth,video.videoHeight);gl.uniform1f(loc.brightness,+controls.light.value);gl.uniform1f(loc.glow,+controls.glow.value);gl.uniform1f(loc.threshold,+controls.threshold.value);palette();gl.drawArrays(gl.TRIANGLES,0,6);canvas.dataset.ready='true';}
+function tick(now){frame=0;if(!playing||document.hidden)return;if(paletteLast)paletteTime+=Math.min((now-paletteLast)/1000,.1);paletteLast=now;if(now-last>1000/30){draw();last=now;}frame=requestAnimationFrame(tick);}
+function sync(){paletteLast=0;pause.textContent=playing?'Pause':'Play';pause.setAttribute('aria-pressed',String(!playing));status.textContent=playing?'Purple shoreline · yellow moonlight and highlights.':'Still shoreline · press Play to animate';cancelAnimationFrame(frame);frame=0;if(playing&&!document.hidden){video.play().then(()=>{if(!frame)frame=requestAnimationFrame(tick);}).catch(()=>{playing=false;video.pause();sync();});}else video.pause();}
+text=await fetch('/assets/sandtris-readme.txt').then(r=>{if(!r.ok)throw Error('README text could not load.');return r.text();});
+await new Promise((resolve,reject)=>{if(video.readyState>=2)return resolve();video.addEventListener('loadeddata',resolve,{once:true});video.addEventListener('error',()=>reject(Error('Beach footage could not load.')),{once:true});});
+ready=true;video.playbackRate=+controls.speed.value;resize();pause.disabled=false;sync();
+pause.onclick=()=>{playing=!playing;sync();};document.getElementById('compare').onclick=e=>{const source=document.body.classList.toggle('source');e.currentTarget.textContent=source?'View letters':'View source';e.currentTarget.setAttribute('aria-pressed',String(source));};
+for(const [id,input] of Object.entries(controls))input.addEventListener('input',()=>{document.getElementById(`${id}-value`).value=id==='threshold'?`${Math.round(+input.value*100)}%`:input.value+(id==='size'?' px':id==='speed'?'×':'');if(id==='size')resize();if(id==='speed')video.playbackRate=+input.value;draw();});
+addEventListener('resize',resize);video.addEventListener('seeked',draw);document.addEventListener('visibilitychange',sync);reduced.addEventListener('change',e=>{playing=!e.matches;sync();});canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();playing=false;sync();fail('The graphics context stopped. Reload to restore the text rendering.');});
+window.beachPreview={get playing(){return playing;},get letters(){return cols*rows;},get hue(){return (265+paletteTime*.85)%360;},draw};
+}catch(e){fail(e.message);}
+})();
+</script></html>
