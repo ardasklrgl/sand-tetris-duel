@@ -11,6 +11,7 @@
 !web_flow.py
 !web_accounts.py
 !best_clipped_weights_run2.npy
+!precomputed_ai.json
 !web/
 !web/**
 !design/

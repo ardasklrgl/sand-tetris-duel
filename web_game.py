@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import gzip
+import hashlib
 from pathlib import Path
 import secrets
 import threading
@@ -18,9 +19,50 @@ from sandtris_lookahead_bot import find_best_placement_lookahead
 from web_physics import LiveEnv
 
 ROOT = Path(__file__).resolve().parent
+PLAN_SOURCES = (
+    "web_game.py", "web_physics.py", "sandtris_env_v10.py",
+    "sandtris_parameterized_bot.py", "sandtris_lookahead_bot.py",
+    "sandtris_c_core.c", "best_clipped_weights_run2.npy",
+)
+PREFETCH_AHEAD = 6
 # The C evaluator has shared scratch buffers, so all native work is serialized.
 ENGINE_LOCK = threading.Lock()
 THINKER = ThreadPoolExecutor(max_workers=1, thread_name_prefix="sandtris-ai")
+
+
+def plan_fingerprint():
+    digest = hashlib.sha256()
+    for name in PLAN_SOURCES:
+        digest.update(name.encode() + b"\0")
+        digest.update((ROOT / name).read_bytes())
+    return digest.hexdigest()
+
+
+def load_precomputed_plans():
+    try:
+        data = json.loads((ROOT / "precomputed_ai.json").read_text())
+        if data.get("fingerprint") != plan_fingerprint():
+            return {}
+        plans = {}
+        for key, actions in data["seeds"].items():
+            seed = int(key)
+            if not 0 <= seed < 2**32 or not isinstance(actions, list) or not 1 <= len(actions) <= 100:
+                return {}
+            if any(type(action) is not int or not 0 <= action < 68 for action in actions):
+                return {}
+            plans[seed] = tuple(actions)
+        return plans
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+
+
+PRECOMPUTED_PLANS = load_precomputed_plans()
+
+
+def calculate_ai_action(env, weights, rng):
+    return int(find_best_placement_lookahead(
+        env, weights, k=3, extraction_mode="clipped",
+        lookahead_mode="color", rng=rng))
 
 
 @dataclass
@@ -46,7 +88,7 @@ class Stats:
 
 
 class Match:
-    def __init__(self, seed, weights):
+    def __init__(self, seed, weights, precomputed_actions=None, plan_limit=None):
         self.id = secrets.token_urlsafe(18)
         self.seed = seed
         self.weights = weights
@@ -57,38 +99,76 @@ class Match:
         self.stats = {"human": Stats(), "ai": Stats()}
         # An independent stream controls color-lookahead's sampled shapes.
         self.search_rng = np.random.default_rng(np.random.SeedSequence([seed, 731]))
+        self.plan_limit = plan_limit
+        self.planned_actions = list(precomputed_actions or ())
+        self.planned_think_ms = [0] * len(self.planned_actions)
+        self.planned_env = None if precomputed_actions is not None else self.ai.clone()
+        self.planning_future = None
+        self.planning_error = None
         self.turn = 0
         self.action = None
         self.think_ms = 0
         self.error = None
         self.result = None
         self.closed = False
-        self.prepare()
+        with self.lock:
+            self.prepare()
 
     def prepare(self):
-        self.action = None
-        snapshot = self.ai.clone()
-        self.future = THINKER.submit(self._think, snapshot)
+        if self.turn < len(self.planned_actions):
+            self.action = self.planned_actions[self.turn]
+            self.think_ms = self.planned_think_ms[self.turn]
+        else:
+            self.action = None
+            self.think_ms = 0
+            if self.planning_error:
+                self.error = self.planning_error
+        self._schedule_planning()
 
-    def _think(self, snapshot):
+    def _schedule_planning(self):
+        # One move per task lets other matches use the single native evaluator.
+        if (self.closed or self.result or self.planned_env is None
+                or self.planning_future is not None or self.planning_error
+                or self.planned_env.done
+                or len(self.planned_actions) - self.turn >= PREFETCH_AHEAD
+                or (self.plan_limit is not None and len(self.planned_actions) >= self.plan_limit)):
+            return
+        self.planning_future = THINKER.submit(self._plan_one)
+
+    def _plan_one(self):
+        with self.lock:
+            if self.closed:
+                return
+            snapshot = self.planned_env.clone()
         try:
             start = time.perf_counter()
             with ENGINE_LOCK:
-                action = find_best_placement_lookahead(
-                    snapshot, self.weights, k=3, extraction_mode="clipped",
-                    lookahead_mode="color", rng=self.search_rng)
+                action = calculate_ai_action(snapshot, self.weights, self.search_rng)
+                snapshot.step(action)
             elapsed = round((time.perf_counter() - start) * 1000)
             with self.lock:
                 if not self.closed:
-                    self.action, self.think_ms = int(action), elapsed
+                    self.planned_actions.append(action)
+                    self.planned_think_ms.append(elapsed)
+                    self.planned_env = snapshot
+                    if self.action is None and self.turn == len(self.planned_actions) - 1:
+                        self.action, self.think_ms = action, elapsed
         except Exception as exc:
             with self.lock:
-                self.error = f"AI could not prepare a move: {exc}"
+                self.planning_error = f"AI could not prepare a move: {exc}"
+                if self.action is None:
+                    self.error = self.planning_error
+        finally:
+            with self.lock:
+                self.planning_future = None
+                if not self.closed:
+                    self._schedule_planning()
 
     def close(self):
         with self.lock:
             self.closed = True
-            self.future.cancel()
+            if self.planning_future is not None:
+                self.planning_future.cancel()
 
     def state(self):
         with self.lock:
@@ -122,21 +202,20 @@ class Match:
             human, ai = self.human.clone(), self.ai.clone()
             records = []
             frames = {}
-            with ENGINE_LOCK:
-                for name, env, selected in [("human", human, action), ("ai", ai, ai_action)]:
-                    before = int(np.count_nonzero(env.world))
-                    if name == 'human' and placement is not None:
-                        # sandtris.py rotates (x, y) -> (y, -x), opposite
-                        # the existing evaluator's rotation numbering.
-                        x, y = placement['x'], placement['y']
-                        rotation = (-placement['rotation']) % 4
-                    else:
-                        rotation, column = divmod(selected, 17)
-                        env.piece.set_rotation(rotation)
-                        width = (max(bx for bx, _ in env.piece.shape) + 1) * 5
-                        x, y = min(column * 5, GRID_WIDTH - width), 0
-                    info, frames[name] = env.place(x, y, rotation, capture=True)
-                    records.append((name, before, env, info))
+            for name, env, selected in [("human", human, action), ("ai", ai, ai_action)]:
+                before = int(np.count_nonzero(env.world))
+                if name == 'human' and placement is not None:
+                    # sandtris.py rotates (x, y) -> (y, -x), opposite
+                    # the existing evaluator's rotation numbering.
+                    x, y = placement['x'], placement['y']
+                    rotation = (-placement['rotation']) % 4
+                else:
+                    rotation, column = divmod(selected, 17)
+                    env.piece.set_rotation(rotation)
+                    width = (max(bx for bx, _ in env.piece.shape) + 1) * 5
+                    x, y = min(column * 5, GRID_WIDTH - width), 0
+                info, frames[name] = env.place(x, y, rotation, capture=True)
+                records.append((name, before, env, info))
             self.human, self.ai = human, ai
             for name, before, env, info in records:
                 self.stats[name].record(before, env, info)

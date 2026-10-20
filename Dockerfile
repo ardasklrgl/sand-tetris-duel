@@ -16,7 +16,8 @@ COPY sandtris_c_core.c .
 RUN gcc -O3 -std=c99 -shared -fPIC sandtris_c_core.c -o sandtris_c_core.so
 
 COPY sandtris_env_v10.py sandtris_parameterized_bot.py sandtris_lookahead_bot.py \
-     web_physics.py web_game.py web_demo.py web_flow.py web_accounts.py best_clipped_weights_run2.npy ./
+     web_physics.py web_game.py web_demo.py web_flow.py web_accounts.py \
+     best_clipped_weights_run2.npy precomputed_ai.json ./
 COPY web/ ./web/
 COPY design/beach/assets/ ./design/beach/assets/
 RUN mkdir -p /app/data

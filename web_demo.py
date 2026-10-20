@@ -10,6 +10,11 @@ LIMIT = 100
 
 
 class DemoMatch(game.Match):
+    def __init__(self, seed, weights):
+        super().__init__(seed, weights,
+                         precomputed_actions=game.PRECOMPUTED_PLANS.get(seed),
+                         plan_limit=LIMIT)
+
     def prepare(self):
         if self.turn >= LIMIT:
             human, ai = self.stats["human"].grains, self.stats["ai"].grains
@@ -181,14 +186,14 @@ class DemoHandler(game.Handler):
             if not isinstance(data, dict):
                 raise ValueError("Expected an object")
             seed = data.get("seed")
-            if seed is None:
-                seed = secrets.randbelow(2**32)
-            if type(seed) is not int or not 0 <= seed < 2**32:
+            if seed is not None and (type(seed) is not int or not 0 <= seed < 2**32):
                 raise ValueError("Seed must be a whole number between 0 and 4294967295.")
             previous_id = data.get("previous_id")
             if previous_id is not None and not isinstance(previous_id, str):
                 raise ValueError("Invalid previous match")
             with self.server.matches_lock:
+                if seed is None:
+                    seed = self.server.next_seed()
                 previous = self.server.matches.pop(previous_id, None)
                 if previous:
                     previous.close()
@@ -206,6 +211,16 @@ class DemoServer(game.GameServer):
     def __init__(self, address):
         super().__init__(address)
         self.RequestHandlerClass = DemoHandler
+        self.seed_pool = []
+
+    def next_seed(self):
+        # Called while matches_lock is held. Use every cached seed before repeats.
+        if not game.PRECOMPUTED_PLANS:
+            return secrets.randbelow(2**32)
+        if not self.seed_pool:
+            self.seed_pool = list(game.PRECOMPUTED_PLANS)
+            secrets.SystemRandom().shuffle(self.seed_pool)
+        return self.seed_pool.pop()
 
 
 def main():
