@@ -152,6 +152,7 @@ TITLE_BOOT_SCRIPT = r'''<script>
 </script>'''
 
 HTML = original.HTML.replace("</style>", CSS + "</style>", 1)
+HTML = HTML.replace("</head>", '<link rel="icon" type="image/png" href="/favicon.png"></head>', 1)
 title_letters = []
 letter_index = 0
 for character in "Sand Tetris Duel":
@@ -486,7 +487,7 @@ INFO_BACKGROUND_SCRIPT = r'''<script>
 def build_info_page(page_title, current, content):
     header = f'''<header><div class="brand"><a id="brand-home" href="/" aria-label="Return to Sand Tetris Duel"><h1 aria-label="Sand Tetris Duel">{title_markup}</h1></a></div>{page_nav(current)}</header>'''
     page_class = 'info-page account-page' if current == 'account' else 'info-page'
-    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{page_title} · Sand Tetris Duel</title><style>{PAGE_STYLE}{INFO_CSS}{POLISH_CSS}</style></head><body class="{page_class}">{TITLE_BOOT_SCRIPT}<canvas id="sand-atmosphere" aria-hidden="true"></canvas><video id="sand-beach-video" src="/beach-assets/night-beach.mp4" poster="/beach-assets/night-beach-poster.jpg" muted loop playsinline preload="auto" hidden aria-hidden="true"></video><main>{header}<div class="info-content">{content}</div></main><script src="/beach-background.js"></script>{INFO_BACKGROUND_SCRIPT}</body></html>'''
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{page_title} · Sand Tetris Duel</title><link rel="icon" type="image/png" href="/favicon.png"><style>{PAGE_STYLE}{INFO_CSS}{POLISH_CSS}</style></head><body class="{page_class}">{TITLE_BOOT_SCRIPT}<canvas id="sand-atmosphere" aria-hidden="true"></canvas><video id="sand-beach-video" src="/beach-assets/night-beach.mp4" poster="/beach-assets/night-beach-poster.jpg" muted loop playsinline preload="auto" hidden aria-hidden="true"></video><main>{header}<div class="info-content">{content}</div></main><script src="/beach-background.js"></script>{INFO_BACKGROUND_SCRIPT}</body></html>'''
 
 ABOUT_CONTENT = '''
 <article class="about-frame">
@@ -675,6 +676,7 @@ class PreviewHandler(original.DemoHandler):
         path = parsed.path
         user = self.current_user()
         assets = {
+            "/favicon.png": (ROOT / "web" / "favicon.png", "image/png"),
             "/beach-background.js": (ROOT / "web" / "beach-background.js", "text/javascript; charset=utf-8"),
             "/account.js": (ROOT / "web" / "account.js", "text/javascript; charset=utf-8"),
             "/beach-assets/night-beach.mp4": (BEACH_ASSETS / "night-beach.mp4", "video/mp4"),
