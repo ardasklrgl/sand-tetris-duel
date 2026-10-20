@@ -49,7 +49,10 @@ static inline Point pop() {
   return stack[stack_ptr];
 }
 
-void step_sand(uint8_t world[GRID_HEIGHT][GRID_WIDTH]) {
+static int step_sand_impl(uint8_t world[GRID_HEIGHT][GRID_WIDTH],
+                          uint8_t *frames, int max_frames) {
+  int frame_count = 0;
+  const size_t frame_size = sizeof(uint8_t[GRID_HEIGHT][GRID_WIDTH]);
   for (int iter = 0; iter < 200; iter++) {
     bool changed = false;
 
@@ -85,9 +88,25 @@ void step_sand(uint8_t world[GRID_HEIGHT][GRID_WIDTH]) {
         }
       }
     }
+    if (frames && changed && iter % 5 == 0 && frame_count < max_frames - 1) {
+      memcpy(frames + frame_count * frame_size, world, frame_size);
+      frame_count++;
+    }
     if (!changed)
       break;
   }
+  if (frames && max_frames > 0) {
+    if (frame_count == 0 ||
+        memcmp(frames + (frame_count - 1) * frame_size, world, frame_size) != 0) {
+      memcpy(frames + frame_count * frame_size, world, frame_size);
+      frame_count++;
+    }
+  }
+  return frame_count;
+}
+
+void step_sand(uint8_t world[GRID_HEIGHT][GRID_WIDTH]) {
+  step_sand_impl(world, NULL, 0);
 }
 
 __attribute__((visibility("default"))) EvalResult
@@ -684,6 +703,12 @@ simulate_all_actions_frontier(uint8_t original_world[GRID_HEIGHT][GRID_WIDTH],
 __attribute__((visibility("default"))) void
 c_step_sand(uint8_t world[GRID_HEIGHT][GRID_WIDTH]) {
   step_sand(world);
+}
+
+__attribute__((visibility("default"))) int
+c_step_sand_frames(uint8_t world[GRID_HEIGHT][GRID_WIDTH],
+                   uint8_t *frames, int max_frames) {
+  return step_sand_impl(world, frames, max_frames);
 }
 
 __attribute__((visibility("default"))) void

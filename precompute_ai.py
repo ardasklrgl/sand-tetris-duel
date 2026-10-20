@@ -15,6 +15,8 @@ from web_physics import LiveEnv
 def plan_seed(seed):
     env = LiveEnv()
     env.reset(seed=seed)
+    replay = LiveEnv()
+    replay.reset(seed=seed)
     rng = np.random.default_rng(np.random.SeedSequence([seed, 731]))
     weights = load_weights()
     actions = []
@@ -22,6 +24,12 @@ def plan_seed(seed):
         action = calculate_ai_action(env, weights, rng)
         actions.append(action)
         _, _, done, _, _ = env.step(action)
+        replay.step(action)
+        if (not np.array_equal(env.world, replay.world)
+                or env.piece.base_shape != replay.piece.base_shape
+                or env.piece.color_idx != replay.piece.color_idx
+                or env.done != replay.done):
+            raise RuntimeError(f"AI planning diverged from replay at seed {seed}, turn {len(actions)}")
         if done:
             break
     return seed, actions

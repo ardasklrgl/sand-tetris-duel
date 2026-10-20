@@ -32,7 +32,7 @@ At the time of this handoff, important work is modified or untracked locally. In
 | `web_demo.py` | 100-piece match subclass and demo client behavior reused by the flow page. |
 | `web/app.js` | Human input, falling piece, canvas drawing, animation playback, and current game API client. |
 | `web_game.py` | Server match lifecycle, AI preparation, statistics, turn execution, and base HTTP handling. |
-| `web_physics.py` | `LiveEnv`: current live sand settling and wall-to-wall clearing behavior. |
+| `web_physics.py` | `LiveEnv`: original local sand physics and wall-to-wall clearing, with captured animation frames. |
 | `sandtris_env_v10.py` | Board, piece definitions, environment, native integration, and random piece generation. |
 | `sandtris_lookahead_bot.py` | Two-step color lookahead search orchestration. |
 | `sandtris_parameterized_bot.py` | Feature extraction, normalization, and native evaluator bindings. |
@@ -127,22 +127,21 @@ Keep the existing Python backend initially. Moving accounts to another platform 
 
 ## 5. Critical compatibility work
 
-### Live physics is not identical to the evaluator's C simulation
+### Live physics matches the trained evaluator
 
-`LiveEnv.settle()` uses a bottom-up per-grain pass, Python `random.Random` for diagonal order, and checks clearing after each tick. The native C scorer uses a different simulation path, including separate movement passes and a bounded iteration loop.
+`LiveEnv.settle()` now uses the original local C sand simulation and clears wall-to-wall components after settling. This is the same physics used while training the AI. Its captured frames sample the same C simulation for browser animation. Keep browser and evaluator physics aligned when porting the game.
 
-Both currently contribute to game behavior: the AI evaluates candidates with the native scorer, then placements and lookahead environments use the current live environment. Preserve this distinction. Do not substitute the evaluator's `step_sand()` for the live game just because it already compiles to WASM.
-
-Port four-neighbor component labeling/clearing explicitly; SciPy does not become a browser dependency automatically. Preserve component removal order and random-state consumption where they affect subsequent states.
+Port four-neighbor component labeling/clearing explicitly; SciPy does not become a browser dependency automatically. Preserve component removal order where it affects subsequent states.
 
 ### Randomness, ties, and replay versioning
 
-Inventory all streams: NumPy's piece sequence, the independent lookahead shape-sampling stream derived from `[seed, 731]`, and Python's live sand RNG. Cloning must copy their state correctly.
+Inventory both random streams: NumPy's piece sequence and the independent lookahead shape-sampling stream derived from `[seed, 731]`. Cloning must copy their state correctly.
+Feature extraction must not draw from the match's piece sequence; precomputed AI plans must replay against the same pieces the player sees.
 
 Choose a compatibility strategy after a small spike:
 
 1. Reproduce the existing generators and draw order exactly, or
-2. Deliver deterministic piece/search schedules where feasible and reproduce the live sand RNG, or
+2. Deliver deterministic piece/search schedules where feasible while preserving the native sand simulation, or
 3. Introduce a versioned portable RNG only with explicit approval of changed seed behavior and regression evidence.
 
 Do not claim old-seed compatibility if the sequence changes. Record engine, RNG, evaluator/weights, and rules versions with ranked matches. Define deterministic candidate tie-breaking; NumPy sorting and floating-point differences can otherwise change AI choices.

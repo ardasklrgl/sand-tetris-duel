@@ -1,7 +1,7 @@
 import numpy as np
 import ctypes
 import os
-from sandtris_env_v10 import SandtrisEnv, GRID_WIDTH, GRID_HEIGHT, BLOCK_GRAIN, GRAIN_SIZE, COLORS, Piece
+from sandtris_env_v10 import SandtrisEnv, GRID_WIDTH, GRID_HEIGHT, BLOCK_GRAIN, GRAIN_SIZE, COLORS
 
 class EvalFrontierResult(ctypes.Structure):
     _fields_ = [
@@ -128,9 +128,8 @@ def extract_features(env, active_color, extraction_mode="clipped"):
         rot_idx = action // num_block_cols
         block_col = action % num_block_cols
         
-        sim_piece = Piece(env.world, env._rng)
-        sim_piece.base_shape = list(env.piece.base_shape)
-        sim_piece.shape = list(env.piece.shape)
+        # Candidate evaluation must not draw from the match's piece stream.
+        sim_piece = env.piece.clone(env.world)
         sim_piece.color_idx = active_color
         sim_piece.set_rotation(rot_idx)
 

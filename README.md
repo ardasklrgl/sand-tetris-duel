@@ -1,6 +1,6 @@
 # Sand Tetris Duel
 
-A 100-piece Sand Tetris duel: you and the color-lookahead AI receive the same seeded pieces. The Python server handles sand physics, AI moves, accounts, and completed-match standings.
+A 100-piece Sand Tetris duel: you and the color-lookahead AI receive the same seeded pieces. Both boards use the original local Sandtris physics that trained the AI. The Python server handles sand physics, AI moves, accounts, and completed-match standings.
 
 ## Run locally
 
@@ -21,6 +21,6 @@ Push this repository to GitHub. In Render, create a **Web Service** from it with
 
 The leaderboard counts completed matches started while signed in. It ranks players by wins minus losses, then total grains cleared. The game page's global AI-versus-human figures use those same completed matches; its separate browser-only record also includes guest games. Account and ranked match data is stored in SQLite; configure a persistent disk mounted at `/app/data` for a hosted service. In-progress matches remain in server memory and disappear on restart; the server handles up to 16 active matches. Use this version for a small playtest rather than a large public launch.
 
-New random matches rotate through 20 precomputed seeds, so their AI actions are ready from the first turn. Entering another seed still works: the server computes up to six future AI moves while the player is making moves. To regenerate the bundled plans after changing the AI, weights, or physics, run `python precompute_ai.py --count 20 --workers 4`. A source fingerprint disables stale plans automatically.
+New random matches rotate through 20 precomputed seeds, so their AI actions are ready from the first turn. Entering another seed still works: the server computes up to six future AI moves while the player is making moves. To regenerate the bundled plans after changing the AI, weights, or physics, run `python precompute_ai.py --count 20 --workers 4`. A source fingerprint disables stale plans automatically. Plan generation checks that search and replay receive the same pieces and produce the same boards.
 
 The game page previews the top 10 players. The leaderboard page includes a personal profile, AI/human comparisons, and standings paginated at 20 players. New matches record clears, placement counts, and pieces played; historical matches without those fields continue to count toward wins and grains. Run the account and ranking checks with `python -m unittest discover -s tests -v`.
