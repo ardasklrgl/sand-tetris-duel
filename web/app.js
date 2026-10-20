@@ -16,7 +16,7 @@ function loadSandSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem('sandtris-settling'));
     if (typeof saved?.speed === 'number' && Number.isFinite(saved.speed)) sandSpeed = Math.max(0.1, Math.min(20, saved.speed));
-    instantSettle = saved?.instant === true;
+    instantSettle = saved?.instant === true || (saved == null && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   } catch (_) {}
   $('sand-speed').value = sandSpeed;
   $('instant').checked = instantSettle;

@@ -1,6 +1,6 @@
 # Sand Tetris Duel
 
-A 100-piece Sand Tetris duel: you and the color-lookahead AI receive the same seeded pieces. Both boards use the original local Sandtris physics that trained the AI. The Python server handles sand physics, AI moves, accounts, and completed-match standings.
+A 100-piece Sand Tetris duel: you and the color-lookahead AI receive the same seeded pieces. Both boards use the local Sandtris C simulation and settle again after every clear, so no sand stays suspended. The Python server handles sand physics, AI moves, accounts, and completed-match standings.
 
 ## Run locally
 

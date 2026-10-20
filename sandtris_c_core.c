@@ -88,7 +88,7 @@ static int step_sand_impl(uint8_t world[GRID_HEIGHT][GRID_WIDTH],
         }
       }
     }
-    if (frames && changed && iter % 5 == 0 && frame_count < max_frames - 1) {
+    if (frames && changed && frame_count < max_frames - 1) {
       memcpy(frames + frame_count * frame_size, world, frame_size);
       frame_count++;
     }

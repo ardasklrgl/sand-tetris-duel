@@ -32,7 +32,7 @@ At the time of this handoff, important work is modified or untracked locally. In
 | `web_demo.py` | 100-piece match subclass and demo client behavior reused by the flow page. |
 | `web/app.js` | Human input, falling piece, canvas drawing, animation playback, and current game API client. |
 | `web_game.py` | Server match lifecycle, AI preparation, statistics, turn execution, and base HTTP handling. |
-| `web_physics.py` | `LiveEnv`: original local sand physics and wall-to-wall clearing, with captured animation frames. |
+| `web_physics.py` | `LiveEnv`: local C sand simulation, repeated settling after clears, and captured animation frames. |
 | `sandtris_env_v10.py` | Board, piece definitions, environment, native integration, and random piece generation. |
 | `sandtris_lookahead_bot.py` | Two-step color lookahead search orchestration. |
 | `sandtris_parameterized_bot.py` | Feature extraction, normalization, and native evaluator bindings. |
@@ -127,9 +127,9 @@ Keep the existing Python backend initially. Moving accounts to another platform 
 
 ## 5. Critical compatibility work
 
-### Live physics matches the trained evaluator
+### Live physics uses the trained sand simulation
 
-`LiveEnv.settle()` now uses the original local C sand simulation and clears wall-to-wall components after settling. This is the same physics used while training the AI. Its captured frames sample the same C simulation for browser animation. Keep browser and evaluator physics aligned when porting the game.
+`LiveEnv.settle()` uses the local C sand simulation and clears wall-to-wall components after settling. It repeats the sand simulation after each clear until the remaining grains rest. The AI evaluator uses the same C sand step, while its feature scorer still evaluates one drop at a time. Captured frames sample every native tick before downsampling for browser playback. Preserve the post-clear settling rule when porting the game.
 
 Port four-neighbor component labeling/clearing explicitly; SciPy does not become a browser dependency automatically. Preserve component removal order where it affects subsequent states.
 

@@ -7,7 +7,8 @@ import numpy as np
 
 from sandtris_env_v10 import SandtrisEnv, Piece, GRID_WIDTH, GRID_HEIGHT, _c_core
 
-FRAME_LIMIT = 32
+PHYSICS_FRAME_LIMIT = 200
+PLAYBACK_FRAME_LIMIT = 90
 _c_core.c_step_sand_frames.argtypes = [
     np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, flags='C_CONTIGUOUS'),
     np.ctypeslib.ndpointer(dtype=np.uint8, ndim=3, flags='C_CONTIGUOUS'),
@@ -58,18 +59,38 @@ class LiveEnv(SandtrisEnv):
         return {'cleared_grains': cleared}, frames
 
     def settle(self, capture=False):
-        frames = []
+        raw_frames = []
+        keyframes = set()
         if capture:
-            frames.append(base64.b64encode(self.world.astype(np.uint8).tobytes()).decode('ascii'))
-            world = np.ascontiguousarray(self.world, dtype=np.uint8)
-            snapshots = np.empty((FRAME_LIMIT, GRID_HEIGHT, GRID_WIDTH), dtype=np.uint8)
-            count = _c_core.c_step_sand_frames(world, snapshots, FRAME_LIMIT)
-            self.world[:] = world
-            frames.extend(base64.b64encode(snapshots[i].tobytes()).decode('ascii')
-                          for i in range(count))
+            raw_frames.append(self.world.astype(np.uint8).tobytes())
+        total_cleared = 0
+        while True:
+            if capture:
+                world = np.ascontiguousarray(self.world, dtype=np.uint8)
+                snapshots = np.empty((PHYSICS_FRAME_LIMIT, GRID_HEIGHT, GRID_WIDTH), dtype=np.uint8)
+                count = _c_core.c_step_sand_frames(world, snapshots, PHYSICS_FRAME_LIMIT)
+                self.world[:] = world
+                raw_frames.extend(snapshots[i].tobytes() for i in range(count))
+            else:
+                self.step_sand()
+            cleared = int(self._clear_reward()[1])
+            if not cleared:
+                break
+            total_cleared += cleared
+            if capture:
+                raw_frames.append(self.world.astype(np.uint8).tobytes())
+                keyframes.add(len(raw_frames) - 1)
+
+        if not capture:
+            return total_cleared, []
+        keyframes.update((0, len(raw_frames) - 1))
+        if len(raw_frames) <= PLAYBACK_FRAME_LIMIT:
+            selected = range(len(raw_frames))
         else:
-            self.step_sand()
-        cleared = int(self._clear_reward()[1])
-        if capture and cleared:
-            frames.append(base64.b64encode(self.world.astype(np.uint8).tobytes()).decode('ascii'))
-        return cleared, frames
+            available = [i for i in range(len(raw_frames)) if i not in keyframes]
+            slots = max(0, PLAYBACK_FRAME_LIMIT - len(keyframes))
+            chosen = (available[int(i)] for i in np.linspace(
+                0, len(available) - 1, min(slots, len(available)))) if slots and available else ()
+            selected = sorted(keyframes | set(chosen))
+        frames = [base64.b64encode(raw_frames[i]).decode('ascii') for i in selected]
+        return total_cleared, frames

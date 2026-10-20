@@ -7,7 +7,7 @@ import numpy as np
 
 from sandtris_env_v10 import SandtrisEnv
 from web_game import calculate_ai_action, load_weights
-from web_physics import LiveEnv
+from web_physics import LiveEnv, PLAYBACK_FRAME_LIMIT
 
 
 class WebPhysicsTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class WebPhysicsTests(unittest.TestCase):
         self.assertEqual(env._rng.bit_generator.state, rng_before)
         np.testing.assert_array_equal(env.world, world_before)
 
-    def test_discrete_placements_match_training_engine(self):
+    def test_discrete_placements_match_training_engine_until_a_clear(self):
         for seed in (7, 42, 3200399780):
             with self.subTest(seed=seed):
                 web, local = LiveEnv(), SandtrisEnv()
@@ -31,8 +31,12 @@ class WebPhysicsTests(unittest.TestCase):
                 for action in actions:
                     _, _, web_done, _, web_info = web.step(int(action))
                     _, _, local_done, _, local_info = local.step(int(action))
+                    if local_info['cleared_grains']:
+                        self.assertGreaterEqual(web_info['cleared_grains'],
+                                                local_info['cleared_grains'])
+                        break
                     np.testing.assert_array_equal(web.world, local.world)
-                    self.assertEqual(web_info['cleared_grains'], local_info['cleared_grains'])
+                    self.assertEqual(web_info['cleared_grains'], 0)
                     self.assertEqual(web_done, local_done)
                     self.assertEqual(web.piece.base_shape, local.piece.base_shape)
                     self.assertEqual(web.piece.color_idx, local.piece.color_idx)
@@ -62,10 +66,25 @@ class WebPhysicsTests(unittest.TestCase):
         env.world[0, 0] = 1
         cleared, frames = env.settle(capture=True)
         self.assertEqual(cleared, 0)
-        self.assertLessEqual(len(frames), 33)
+        self.assertLessEqual(len(frames), PLAYBACK_FRAME_LIMIT)
         final = np.frombuffer(base64.b64decode(frames[-1]), dtype=np.uint8)
         np.testing.assert_array_equal(final.reshape(env.world.shape), env.world)
         self.assertEqual(env.world[-1, 0], 1)
+
+    def test_sand_settles_into_space_left_by_a_clear(self):
+        env = LiveEnv()
+        env.reset(seed=7)
+        env.world[-1, :] = 1
+        env.world[-2, 40] = 2
+        cleared, frames = env.settle(capture=True)
+        self.assertEqual(cleared, 85)
+        self.assertEqual(env.world[-1, 40], 2)
+        self.assertEqual(env.world[-2, 40], 0)
+        self.assertTrue(any(np.frombuffer(base64.b64decode(frame), dtype=np.uint8)
+                            .reshape(env.world.shape)[-2, 40] == 2
+                            for frame in frames[:-1]))
+        final = np.frombuffer(base64.b64decode(frames[-1]), dtype=np.uint8)
+        np.testing.assert_array_equal(final.reshape(env.world.shape), env.world)
 
 
 if __name__ == '__main__':
