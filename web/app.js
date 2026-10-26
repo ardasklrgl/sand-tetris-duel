@@ -1,12 +1,28 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const W = 85, H = 150, SCALE = 4;
-const COLORS = ['#000', 'rgb(200,100,100)', 'rgb(100,100,200)', 'rgb(100,200,100)', 'rgb(200,200,100)'];
+const PALETTE = [[0, 0, 0], [200, 100, 100], [100, 100, 200], [100, 200, 100], [200, 200, 100]];
+const COLORS = PALETTE.map(([r, g, b]) => `rgb(${r},${g},${b})`);
 let state = null, piece = null, busy = false, pendingDrop = false, paused = false;
 let pollTimer, epoch = 0, message = '', animation = null;
-let gravityTimer = 0, moveTimer = 0, lastTime = 0;
+let gravityTimer = 0, horizontalTimer = 0, downTimer = 0, lastTime = 0;
 let sandSpeed = 1, instantSettle = false;
 const held = new Set();
+const HORIZONTAL_STEP_MS = 10, SOFT_DROP_STEP_MS = 1000 / 60;
+const MAX_INPUT_STEPS_PER_FRAME = 8;
+const boardLayers = {};
+for (const name of ['ai', 'human']) {
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  boardLayers[name] = {canvas, ctx: canvas.getContext('2d', {alpha: false}), source: null};
+}
+
+function clearHeld() {
+  held.clear();
+  horizontalTimer = 0;
+  downTimer = 0;
+}
 
 function saveSandSettings() {
   try { localStorage.setItem('sandtris-settling', JSON.stringify({speed: sandSpeed, instant: instantSettle})); } catch (_) {}
@@ -68,7 +84,8 @@ function fits(x, y, rotation = piece.rotation) {
 function spawn() {
   piece = {x: Math.floor(W / 2) - 5, y: 0, rotation: 0};
   gravityTimer = 0;
-  moveTimer = 0;
+  horizontalTimer = 0;
+  downTimer = 0;
   pendingDrop = false;
 }
 
@@ -86,6 +103,24 @@ function move(dx, dy) {
   return false;
 }
 
+function startHold(action) {
+  if (!controllable() || held.has(action)) return;
+  held.add(action);
+  if (action === 'left' || action === 'right') {
+    horizontalTimer = 0;
+    move(action === 'left' ? -1 : 1, 0);
+  } else if (action === 'down') {
+    downTimer = 0;
+    move(0, 1);
+  }
+}
+
+function stopHold(action) {
+  held.delete(action);
+  if (!held.has('left') && !held.has('right')) horizontalTimer = 0;
+  if (!held.has('down')) downTimer = 0;
+}
+
 function rotate() {
   if (!controllable()) return;
   const rotation = (piece.rotation + 1) % 4;
@@ -99,20 +134,22 @@ function rotate() {
   }
 }
 
-function drawWorld(ctx, world) {
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const color = world[y][x];
-    if (color) { ctx.fillStyle = COLORS[color]; ctx.fillRect(x * SCALE, y * SCALE, SCALE, SCALE); }
+function drawBoardLayer(name, source) {
+  const layer = boardLayers[name];
+  if (layer.source === source) return layer.canvas;
+  const pixels = layer.ctx.createImageData(W, H);
+  const values = Array.isArray(source[0]) ? source.flat() : source;
+  for (let i = 0; i < W * H; i++) {
+    const color = PALETTE[values[i]];
+    const offset = i * 4;
+    pixels.data[offset] = color[0];
+    pixels.data[offset + 1] = color[1];
+    pixels.data[offset + 2] = color[2];
+    pixels.data[offset + 3] = 255;
   }
-}
-
-function drawFrame(ctx, data) {
-  for (let i = 0; i < data.length; i++) {
-    if (data[i]) {
-      ctx.fillStyle = COLORS[data[i]];
-      ctx.fillRect((i % W) * SCALE, Math.floor(i / W) * SCALE, SCALE, SCALE);
-    }
-  }
+  layer.ctx.putImageData(pixels, 0, 0);
+  layer.source = source;
+  return layer.canvas;
 }
 
 function draw() {
@@ -121,12 +158,15 @@ function draw() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, 340, 600);
     if (!state) continue;
+    let source;
     if (animation && animation.frames[name].length) {
       const frames = animation.frames[name];
-      drawFrame(ctx, frames[Math.min(animation.index, frames.length - 1)]);
+      source = frames[Math.min(animation.index, frames.length - 1)];
     } else {
-      drawWorld(ctx, state.boards[name].world);
+      source = state.boards[name].world;
     }
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(drawBoardLayer(name, source), 0, 0, 340, 600);
     if (name === 'human' && !state.result && piece) {
       ctx.fillStyle = COLORS[state.piece.color];
       for (const [bx, by] of shapeAt(state.piece.shape, piece.rotation)) {
@@ -180,7 +220,7 @@ async function newMatch(random = false) {
   if (seed !== null && (!Number.isInteger(seed) || seed < 0 || seed >= 2 ** 32)) {
     message = 'Seed must be a whole number from 0 to 4294967295.'; updateUI(); return;
   }
-  epoch++; clearTimeout(pollTimer); held.clear(); animation = null; busy = true; message = 'Loading…'; updateUI();
+  epoch++; clearTimeout(pollTimer); clearHeld(); animation = null; busy = true; message = 'Loading…'; updateUI();
   for (const id of ['seed', 'restart', 'new']) $(id).disabled = true;
   try {
     state = await api('/api/new', {seed, previous_id: state?.id});
@@ -201,7 +241,7 @@ function requestDrop() {
   animation = null;
   while (fits(piece.x, piece.y + 1)) piece.y++;
   pendingDrop = true;
-  held.clear();
+  clearHeld();
   updateUI();
   if (state.ready) commitDrop();
 }
@@ -242,11 +282,11 @@ async function commitDrop() {
 
 function togglePause() {
   if (busy || !state || state.result) return;
-  paused = !paused; held.clear(); gravityTimer = 0; updateUI();
+  paused = !paused; clearHeld(); gravityTimer = 0; updateUI();
 }
 
 function frame(now) {
-  const dt = Math.min(40, now - (lastTime || now));
+  const dt = Math.min(80, now - (lastTime || now));
   lastTime = now;
   if (animation) {
     const elapsed = Math.max(0, now - animation.lastTime);
@@ -258,15 +298,27 @@ function frame(now) {
     }
   }
   if (controllable() && !document.hidden) {
-    moveTimer += dt;
-    if (moveTimer >= 1000 / 60) {
-      if (held.has('left')) move(-1, 0);
-      if (held.has('right')) move(1, 0);
-      if (held.has('down')) move(0, 1);
-      moveTimer %= 1000 / 60;
+    const horizontalDirection = Number(held.has('right')) - Number(held.has('left'));
+    if (horizontalDirection) {
+      horizontalTimer += dt;
+      for (let steps = 0; horizontalTimer >= HORIZONTAL_STEP_MS && steps < MAX_INPUT_STEPS_PER_FRAME; steps++) {
+        horizontalTimer -= HORIZONTAL_STEP_MS;
+        if (!move(horizontalDirection, 0)) { horizontalTimer = 0; break; }
+      }
+    } else {
+      horizontalTimer = 0;
+    }
+    if (held.has('down')) {
+      downTimer += dt;
+      for (let steps = 0; downTimer >= SOFT_DROP_STEP_MS && steps < MAX_INPUT_STEPS_PER_FRAME; steps++) {
+        downTimer -= SOFT_DROP_STEP_MS;
+        if (!move(0, 1)) { downTimer = 0; break; }
+      }
+    } else {
+      downTimer = 0;
     }
     gravityTimer += dt;
-    if (gravityTimer >= 30) {
+    while (gravityTimer >= 30 && controllable()) {
       gravityTimer -= 30;
       if (!move(0, 1)) requestDrop();
     }
@@ -281,18 +333,18 @@ document.addEventListener('keydown', event => {
   const action = keyActions[event.key];
   if (action || ['ArrowUp', 'w', 'W', ' ', 'p', 'P'].includes(event.key)) event.preventDefault();
   if (event.repeat) return;
-  if (action) held.add(action);
+  if (action) startHold(action);
   if (['ArrowUp', 'w', 'W'].includes(event.key)) rotate();
   if (event.key === ' ') requestDrop();
   if (['p', 'P'].includes(event.key)) togglePause();
 });
-document.addEventListener('keyup', event => held.delete(keyActions[event.key]));
-window.addEventListener('blur', () => { held.clear(); if (state && !busy && !state.result) { paused = true; updateUI(); } });
-document.addEventListener('visibilitychange', () => { held.clear(); gravityTimer = 0; });
+document.addEventListener('keyup', event => stopHold(keyActions[event.key]));
+window.addEventListener('blur', () => { clearHeld(); if (state && !busy && !state.result) { paused = true; updateUI(); } });
+document.addEventListener('visibilitychange', () => { clearHeld(); gravityTimer = 0; lastTime = 0; });
 for (const [id, dx, dy] of [['left', -1, 0], ['right', 1, 0], ['down', 0, 1]]) {
-  $(id).addEventListener('pointerdown', event => { event.preventDefault(); move(dx, dy); held.add(id); $(id).setPointerCapture(event.pointerId); });
-  $(id).addEventListener('pointerup', () => { held.delete(id); $('human-board').focus({preventScroll: true}); });
-  $(id).addEventListener('pointercancel', () => held.delete(id));
+  $(id).addEventListener('pointerdown', event => { event.preventDefault(); startHold(id); $(id).setPointerCapture(event.pointerId); });
+  $(id).addEventListener('pointerup', () => { stopHold(id); $('human-board').focus({preventScroll: true}); });
+  $(id).addEventListener('pointercancel', () => stopHold(id));
   $(id).onclick = event => { if (event.detail === 0) move(dx, dy); };
 }
 $('rotate').onclick = () => { rotate(); $('human-board').focus({preventScroll: true}); };
