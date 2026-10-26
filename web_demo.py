@@ -143,10 +143,13 @@ draw = function () {
     const ctx = $(name + '-board').getContext('2d');
     ctx.fillStyle = '#000'; ctx.fillRect(0,0,340,600);
     if (!state) continue;
+    let source;
     if (animation && animation.frames[name].length) {
       const frames = animation.frames[name];
-      drawFrame(ctx,frames[Math.min(animation.index,frames.length-1)]);
-    } else drawWorld(ctx,state.boards[name].world);
+      source = frames[Math.min(animation.index,frames.length-1)];
+    } else source = state.boards[name].world;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(drawBoardLayer(name,source),0,0,340,600);
     if (name === 'human' && !state.result && piece) {
       ctx.fillStyle = COLORS[state.piece.color];
       for (const [bx,by] of shapeAt(state.piece.shape,piece.rotation)) ctx.fillRect((piece.x+bx*5)*SCALE,(piece.y+by*5)*SCALE,20,20);
