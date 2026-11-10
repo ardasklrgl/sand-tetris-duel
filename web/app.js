@@ -1,5 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
+const practice = location.pathname.replace(/\/$/, '') === '/practice';
 const W = 85, H = 150, SCALE = 4;
 const PALETTE = [[0, 0, 0], [200, 100, 100], [100, 100, 200], [100, 200, 100], [200, 200, 100]];
 const COLORS = PALETTE.map(([r, g, b]) => `rgb(${r},${g},${b})`);
@@ -90,7 +91,7 @@ function spawn() {
 }
 
 function controllable() {
-  return state && piece && !state.result && !state.error && !busy && !pendingDrop && !paused;
+  return state && (!practice || state.mode === 'human') && piece && !state.result && !state.error && !busy && !pendingDrop && !paused;
 }
 
 function move(dx, dy) {
@@ -153,7 +154,7 @@ function drawBoardLayer(name, source) {
 }
 
 function draw() {
-  for (const name of ['ai', 'human']) {
+  for (const name of practice ? ['human'] : ['ai', 'human']) {
     const ctx = $(name + '-board').getContext('2d');
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, 340, 600);
@@ -167,13 +168,13 @@ function draw() {
     }
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(drawBoardLayer(name, source), 0, 0, 340, 600);
-    if (name === 'human' && !state.result && piece) {
+    if (name === 'human' && !state.result && piece && (!practice || state.mode === 'human')) {
       ctx.fillStyle = COLORS[state.piece.color];
       for (const [bx, by] of shapeAt(state.piece.shape, piece.rotation)) {
         ctx.fillRect((piece.x + bx * 5) * SCALE, (piece.y + by * 5) * SCALE, 20, 20);
       }
     }
-    if (state.result) {
+    if (state.result && !practice) {
       ctx.fillStyle = '#000a'; ctx.fillRect(0, 0, 340, 600);
       ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '20px Arial';
       ctx.fillText(state.result, 170, 285);
@@ -220,10 +221,15 @@ async function newMatch(random = false) {
   if (seed !== null && (!Number.isInteger(seed) || seed < 0 || seed >= 2 ** 32)) {
     message = 'Seed must be a whole number from 0 to 4294967295.'; updateUI(); return;
   }
+  const limit = practice ? Number($('piece-limit').value) : null;
+  if (practice && (!Number.isInteger(limit) || limit < 1 || limit > 1000000)) {
+    message = 'Choose a piece count from 1 to 1,000,000.'; updateUI(); return;
+  }
   epoch++; clearTimeout(pollTimer); clearHeld(); animation = null; busy = true; message = 'Loading…'; updateUI();
   for (const id of ['seed', 'restart', 'new']) $(id).disabled = true;
   try {
-    state = await api('/api/new', {seed, previous_id: state?.id});
+    state = await api(practice ? '/api/practice/new' : '/api/new', {seed, previous_id: state?.id,
+      ...(practice ? {limit, mode: $('ai-mode').getAttribute('aria-pressed') === 'true' ? 'ai' : 'human'} : {})});
     $('seed').value = state.seed;
     const url = new URL(location.href); url.searchParams.set('seed', state.seed); history.replaceState(null, '', url);
     paused = false; message = ''; spawn(); $('human-board').focus({preventScroll: true});
@@ -264,7 +270,7 @@ async function commitDrop() {
   if (busy || !state || !state.ready || !pendingDrop || state.result) return;
   busy = true; message = ''; clearTimeout(pollTimer); updateUI();
   try {
-    const next = await api('/api/move', {id: state.id, turn: state.turn, placement: {...piece}});
+    const next = await api(practice ? '/api/practice/move' : '/api/move', {id: state.id, turn: state.turn, placement: {...piece}});
     startSandAnimation(next);
     state = next;
     delete state.frames;
@@ -281,7 +287,7 @@ async function commitDrop() {
 }
 
 function togglePause() {
-  if (busy || !state || state.result) return;
+  if ((busy && !practice) || !state || state.result) return;
   paused = !paused; clearHeld(); gravityTimer = 0; updateUI();
 }
 

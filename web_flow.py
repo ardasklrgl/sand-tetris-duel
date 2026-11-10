@@ -4,11 +4,13 @@ from http import cookies
 from html import escape
 import json
 import os
+import re
 from pathlib import Path
 import threading
 import time
 from urllib.parse import parse_qs, urlparse
 import web_demo as original
+from web_practice import PracticeMatch
 from web_accounts import AccountStore
 
 TITLE = 'Sand Tetris Duel · Drift'
@@ -245,6 +247,7 @@ HTML = HTML.replace('</body>', r'''<script>
 })();
 </script></body>''', 1)
 
+HTML = HTML.replace('<a href="/about">About</a>', '<a href="/practice">Practice</a><span class="site-nav-separator" aria-hidden="true">|</span><a href="/about">About</a>', 1)
 PAGE_STYLE = HTML.split('<style>', 1)[1].split('</style>', 1)[0]
 INFO_CSS = r'''
 .info-page main { min-height: 720px; }
@@ -466,7 +469,8 @@ main::before { box-shadow: 0 18px 64px 10px #000000a8; }
 def page_nav(current):
     about_current = ' aria-current="page"' if current == 'about' else ''
     leaderboard_current = ' aria-current="page"' if current == 'leaderboard' else ''
-    return f'''<nav class="site-nav" aria-label="Page navigation"><a href="/about"{about_current}>About</a><span class="site-nav-separator" aria-hidden="true">|</span><a href="/leaderboard"{leaderboard_current}>Leaderboard</a><span class="site-nav-separator" aria-hidden="true">|</span><button id="nav-background" type="button" aria-pressed="false">Background</button><span class="nav-account-slot"></span></nav>'''
+    practice_current = ' aria-current="page"' if current == 'practice' else ''
+    return f'''<nav class="site-nav" aria-label="Page navigation"><a href="/practice"{practice_current}>Practice</a><span class="site-nav-separator" aria-hidden="true">|</span><a href="/about"{about_current}>About</a><span class="site-nav-separator" aria-hidden="true">|</span><a href="/leaderboard"{leaderboard_current}>Leaderboard</a><span class="site-nav-separator" aria-hidden="true">|</span><button id="nav-background" type="button" aria-pressed="false">Background</button><span class="nav-account-slot"></span></nav>'''
 
 INFO_BACKGROUND_SCRIPT = r'''<script>
 (() => {
@@ -608,6 +612,27 @@ def account_content(user, board):
     record = f'{mine["wins"]} wins · {mine["losses"]} losses · {mine["draws"]} draws' if mine else 'No completed matches yet.'
     return f'''<section class="site-panel"><h2>Logged in as {escape(user['username'])}</h2><p>{record}</p><p><a class="inline-link" href="/leaderboard">View your leaderboard record</a></p><button id="sign-out" class="panel-cta" type="button">Sign out</button></section><script>document.getElementById('sign-out').addEventListener('click', async () => {{ await fetch('/api/logout', {{method:'POST',headers:{{'Content-Type':'application/json'}},body:'{{}}'}}); location.assign('/'); }});</script>'''
 
+def practice_document(user):
+    document = GAME_HTML.replace('<title>Sand Tetris Duel</title>', '<title>Practice · Sand Tetris Duel</title>')
+    document = document.replace('<body>', '<body class="practice-page">', 1)
+    document = re.sub(r'<article class="ai">.*?</article>', '', document, count=1, flags=re.S)
+    document = document.replace('<div class="ai">' + ai_stats + '</div>', '', 1)
+    start = document.index('<section id="scoreboard"')
+    end = document.index('</section>', start) + len('</section>')
+    document = document[:start] + document[end:]
+    document = document.replace('<h2>You</h2>', '<h2 id="practice-player">You · Practice</h2>', 1)
+    document = document.replace('<p class="help">', '<p id="practice-help" class="help">', 1)
+    document = document.replace('<script src="/demo.js"></script>', '<script src="/practice.js"></script>')
+    document = document.replace('<progress id="match-progress"', '''<div class="practice-settings"><label for="piece-limit">Pieces</label><input id="piece-limit" type="number" min="1" max="1000000" value="100"><button id="ai-mode" type="button" aria-pressed="false">AI mode: off</button></div><p class="practice-note">Changing mode or piece count starts a fresh game.</p><progress id="match-progress"''', 1)
+    document = document.replace('<a href="/practice">', '<a href="/practice" aria-current="page">', 1)
+    document = document.replace('<a href="/practice" aria-current="page">', '<a href="/">Duel</a><span class="site-nav-separator" aria-hidden="true">|</span><a href="/practice" aria-current="page">', 1)
+    for index, pulse in [(1, 'clear-pulse'), (2, 'grain-pulse')]:
+        document = document.replace(f"  watchStat('ai-stats', {index}, '{pulse}');", '')
+    style = '''.practice-page .boards{grid-template-columns:minmax(0,340px);justify-content:center}.practice-page .match-panel{max-width:520px;margin-left:auto;margin-right:auto}.practice-page .match-stats{grid-template-columns:1fr}.practice-page .stats{grid-template-columns:repeat(4,1fr)}.practice-settings{display:flex;align-items:center;justify-content:center;gap:12px;margin:22px 0 8px;font-size:12px}.practice-settings input{width:96px}.practice-settings button{background:#292b36}.practice-settings button[aria-pressed="true"]{background:var(--ai);color:#101116}.practice-note{text-align:center;color:var(--muted);font-size:10px;margin:0 0 22px}.practice-page .help{line-height:1.7}.practice-page .settings{flex-wrap:wrap}.practice-page header{flex-wrap:wrap}'''
+    document = document.replace('</style>', style + '</style>', 1)
+    return add_account_nav(document, user)
+
+
 class PreviewHandler(original.DemoHandler):
     def current_user(self):
         jar = cookies.SimpleCookie()
@@ -668,7 +693,7 @@ class PreviewHandler(original.DemoHandler):
         match.owner_user_id = user['id'] if user else None
 
     def after_move(self, match, state):
-        if state['result']:
+        if state['result'] and not isinstance(match, PracticeMatch):
             self.server.accounts.record_match(match, getattr(match, 'owner_user_id', None))
 
     def do_GET(self):
@@ -676,6 +701,7 @@ class PreviewHandler(original.DemoHandler):
         path = parsed.path
         user = self.current_user()
         assets = {
+            "/practice.js": (ROOT / "web" / "practice.js", "text/javascript; charset=utf-8"),
             "/favicon.png": (ROOT / "web" / "favicon.png", "image/png"),
             "/beach-background.js": (ROOT / "web" / "beach-background.js", "text/javascript; charset=utf-8"),
             "/account.js": (ROOT / "web" / "account.js", "text/javascript; charset=utf-8"),
@@ -685,6 +711,8 @@ class PreviewHandler(original.DemoHandler):
         }
         if path == "/":
             self.respond(200, game_document(user, self.server.accounts.global_stats(), self.server.accounts.standings(user['id'] if user else None)).encode(), "text/html; charset=utf-8")
+        elif path in {"/practice", "/practice/"}:
+            self.respond(200, practice_document(user).encode(), "text/html; charset=utf-8")
         elif path in {"/about", "/about/"}:
             self.respond(200, add_account_nav(ABOUT_HTML, user).encode(), "text/html; charset=utf-8")
         elif path in {"/leaderboard", "/leaderboard/"}:
@@ -717,6 +745,42 @@ class PreviewHandler(original.DemoHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if path in {'/api/practice/new', '/api/practice/move'}:
+            try:
+                data = self.read_account_data()
+                if path.endswith('/move'):
+                    match = self.get_match(data.get('id'))
+                    if not isinstance(match, PracticeMatch):
+                        raise ValueError('This is not a practice session.')
+                    self.respond(200, match.move(data.get('turn'), placement=data.get('placement')))
+                    return
+                seed, limit, mode = data.get('seed'), data.get('limit', 100), data.get('mode', 'human')
+                if seed is not None and (type(seed) is not int or not 0 <= seed < 2**32):
+                    raise ValueError('Invalid seed.')
+                if type(limit) is not int or not 1 <= limit <= 1000000 or mode not in ('human', 'ai'):
+                    raise ValueError('Choose a valid mode and piece count from 1 to 1,000,000.')
+                previous_id = data.get('previous_id')
+                if previous_id is not None and not isinstance(previous_id, str):
+                    raise ValueError('Invalid previous session.')
+                if previous_id in self.server.matches:
+                    self.get_match(previous_id)
+                with self.server.matches_lock:
+                    previous = self.server.matches.pop(previous_id, None)
+                    if previous:
+                        previous.close()
+                    if len(self.server.matches) >= 16:
+                        self.server.matches.pop(next(iter(self.server.matches))).close()
+                    match = PracticeMatch(self.server.next_seed() if seed is None else seed, self.server.weights, limit, mode)
+                    self.on_new_match(match)
+                    self.server.matches[match.id] = match
+                self.respond(200, match.state())
+            except (ValueError, TypeError) as exc:
+                self.respond(400, {'error': str(exc)})
+            except Exception:
+                import traceback
+                traceback.print_exc()
+                self.respond(500, {'error': 'Could not complete the practice turn. Start a new game.'})
+            return
         if path not in {'/api/login', '/api/signup', '/api/logout'}:
             return super().do_POST()
         try:
