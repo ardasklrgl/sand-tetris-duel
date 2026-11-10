@@ -1,6 +1,7 @@
 """Single-board practice with the duel's physics and AI policy."""
 import secrets
 import threading
+import time
 import numpy as np
 import web_game as game
 
@@ -15,6 +16,7 @@ class PracticeMatch:
         self.stats = game.Stats()
         self.search_rng = np.random.default_rng(np.random.SeedSequence([seed, 731]))
         self.turn, self.result, self.closed = 0, None, False
+        self.last_think_ms = self.total_think_ms = 0.0
 
     def close(self):
         with self.lock:
@@ -25,6 +27,8 @@ class PracticeMatch:
             board = dict(world=self.env.world.tolist(), done=bool(self.env.done), stats=self.stats.serialize(self.env))
             return dict(id=self.id, seed=self.seed, turn=self.turn, limit=self.limit, mode=self.mode,
                         result=self.result, ready=not self.closed and not self.result, error=None,
+                        last_think_ms=self.last_think_ms,
+                        average_think_ms=self.total_think_ms / self.turn if self.turn else 0.0,
                         piece=dict(shape=self.env.piece.base_shape, color=self.env.piece.color_idx),
                         boards=dict(human=board, ai=board))
 
@@ -37,7 +41,9 @@ class PracticeMatch:
             env = self.env.clone()
             with game.ENGINE_LOCK:
                 if self.mode == 'ai':
+                    start = time.perf_counter()
                     selected = game.calculate_ai_action(env, self.weights, self.search_rng)
+                    think_ms = (time.perf_counter() - start) * 1000
                     rotation, column = divmod(int(selected), 17)
                     env.piece.set_rotation(rotation)
                     width = (max(x for x, _ in env.piece.shape) + 1) * 5
@@ -51,6 +57,9 @@ class PracticeMatch:
                 before = int(np.count_nonzero(env.world))
                 info, frames = env.place(x, y, rotation, capture=True)
             self.env = env
+            if self.mode == 'ai':
+                self.last_think_ms = think_ms
+                self.total_think_ms += think_ms
             self.stats.record(before, env, info)
             self.turn += 1
             if env.done:

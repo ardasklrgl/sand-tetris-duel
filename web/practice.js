@@ -5,8 +5,9 @@ updateUI = function () {
   clearTimeout(aiTimer);
   const ai = state?.mode === 'ai';
   document.body.classList.toggle('is-paused', paused);
+  document.body.classList.toggle('is-practice-ai', ai);
   $('practice-player').textContent = ai ? 'AI demonstration' : 'You · Practice';
-  $('status').textContent = message || state?.error || (paused ? 'Paused' : ai && busy ? 'AI is thinking…' : '');
+  $('status').textContent = message || state?.error || (paused ? 'Paused' : '');
   $('status').hidden = !$('status').textContent;
   for (const id of ['left', 'right', 'rotate', 'down', 'drop']) $(id).disabled = !controllable();
   for (const id of ['seed', 'restart', 'new', 'piece-limit', 'ai-mode', 'play-again']) $(id).disabled = busy;
@@ -16,6 +17,7 @@ updateUI = function () {
   if (!state) return;
   const s = state.boards.human.stats;
   const items = [['Pieces', `${s.steps}/${state.limit}`], ['Clears', s.clears], ['Grains', s.grains.toLocaleString()], ['Clear %', `${s.clear_percentage.toFixed(1)}%`]];
+  if (ai) items.push(['Last move', state.turn ? `${state.last_think_ms.toFixed(1)} ms` : '—'], ['Avg move', state.turn ? `${state.average_think_ms.toFixed(1)} ms` : '—']);
   $('human-stats').innerHTML = items.map(([label, value]) => `<span>${label}<b>${value}</b></span>`).join('');
   $('match-progress').max = state.limit;
   $('match-progress').value = state.turn;

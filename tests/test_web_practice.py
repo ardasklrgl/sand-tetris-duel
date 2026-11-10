@@ -7,6 +7,17 @@ from web_practice import PracticeMatch
 
 
 class PracticeTests(unittest.TestCase):
+    def test_ai_timing_tracks_last_and_average_policy_calculation(self):
+        match = PracticeMatch(123, load_weights(), 2, 'ai')
+        self.assertEqual(match.state()['average_think_ms'], 0)
+        with patch('web_game.calculate_ai_action', return_value=0), patch('web_practice.time.perf_counter', side_effect=[1, 1.2, 2, 2.4]):
+            first = match.move(0)
+            second = match.move(1)
+        self.assertAlmostEqual(first['last_think_ms'], 200)
+        self.assertAlmostEqual(first['average_think_ms'], 200)
+        self.assertAlmostEqual(second['last_think_ms'], 400)
+        self.assertAlmostEqual(second['average_think_ms'], 300)
+
     def test_human_uses_original_physics_without_ai_work(self):
         match = PracticeMatch(123, load_weights(), 1, 'human')
         reference = LiveEnv()
