@@ -7,6 +7,21 @@ from web_practice import PracticeMatch
 
 
 class PracticeTests(unittest.TestCase):
+    def test_switching_mode_preserves_game_and_ai_average(self):
+        match = PracticeMatch(123, load_weights(), 20, 'human')
+        human = match.move(0, placement=dict(x=35, y=0, rotation=0))
+        switched = match.set_mode('ai')
+        for key in ('id', 'seed', 'turn', 'limit', 'boards', 'piece'):
+            self.assertEqual(human[key], switched[key])
+        with patch('web_game.calculate_ai_action', return_value=0), patch('web_practice.time.perf_counter', side_effect=[1, 1.2]):
+            ai = match.move(1)
+        self.assertAlmostEqual(ai['average_think_ms'], 200)
+        self.assertEqual(ai['ai_moves'], 1)
+        returned = match.set_mode('human')
+        self.assertEqual(ai['boards'], returned['boards'])
+        self.assertEqual(returned['turn'], 2)
+        self.assertEqual(returned['id'], human['id'])
+
     def test_ai_timing_tracks_last_and_average_policy_calculation(self):
         match = PracticeMatch(123, load_weights(), 2, 'ai')
         self.assertEqual(match.state()['average_think_ms'], 0)

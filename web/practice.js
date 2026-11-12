@@ -1,7 +1,7 @@
 'use strict';
 sandSpeed = 1.5;
 let aiTimer;
-let practiceRestartRequested = false;
+let practiceModeRequested = false;
 function formatMoveTime(ms) {
   if (ms < 1000) return `${Math.round(ms)}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
@@ -9,9 +9,9 @@ function formatMoveTime(ms) {
 }
 updateUI = function () {
   clearTimeout(aiTimer);
-  if (practiceRestartRequested && !busy) {
-    practiceRestartRequested = false;
-    newMatch();
+  if (practiceModeRequested && !busy) {
+    practiceModeRequested = false;
+    switchPracticeMode();
     return;
   }
   const ai = state?.mode === 'ai';
@@ -29,15 +29,33 @@ updateUI = function () {
   if (!state) return;
   const s = state.boards.human.stats;
   const items = [['Pieces', `${s.steps}/${state.limit}`], ['Clears', s.clears], ['Grains', s.grains.toLocaleString()], ['Clear %', `${s.clear_percentage.toFixed(1)}%`]];
-  if (ai) items.push(['Last move', state.turn ? formatMoveTime(state.last_think_ms) : '—'], ['Avg move', state.turn ? formatMoveTime(state.average_think_ms) : '—']);
+  if (ai) items.push(['Last move', state.ai_moves ? formatMoveTime(state.last_think_ms) : '—'], ['Avg move', state.ai_moves ? formatMoveTime(state.average_think_ms) : '—']);
   $('human-stats').innerHTML = items.map(([label, value]) => `<span>${label}<b>${value}</b></span>`).join('');
   $('match-progress').max = state.limit;
   $('match-progress').value = state.turn;
   $('match-progress').setAttribute('aria-label', `${state.turn} of ${state.limit} pieces played`);
   $('result').hidden = !state.result;
   $('result-title').textContent = state.result || '';
-  if (ai && !busy && !paused && !state.result && !state.error && !message && !practiceRestartRequested) aiTimer = setTimeout(playAI, 0);
+  if (ai && !busy && !paused && !state.result && !state.error && !message && !practiceModeRequested) aiTimer = setTimeout(playAI, 0);
 };
+async function switchPracticeMode() {
+  busy = true;
+  clearHeld();
+  updateUI();
+  try {
+    state = await api('/api/practice/mode', {id: state.id,
+      mode: $('ai-mode').getAttribute('aria-pressed') === 'true' ? 'ai' : 'human'});
+    if (state.mode === 'human') spawn();
+    message = '';
+  } catch (error) {
+    message = error.message;
+    $('ai-mode').setAttribute('aria-pressed', String(state.mode === 'ai'));
+    $('ai-mode').textContent = state.mode === 'ai' ? 'Practice mode' : 'AI mode';
+  } finally {
+    busy = false;
+    updateUI();
+  }
+}
 async function playAI() {
   if (!state || busy || paused || state.result || state.mode !== 'ai') return;
   busy = true;
@@ -59,7 +77,7 @@ $('ai-mode').onclick = () => {
   const ai = $('ai-mode').getAttribute('aria-pressed') !== 'true';
   $('ai-mode').setAttribute('aria-pressed', String(ai));
   $('ai-mode').textContent = ai ? 'Practice mode' : 'AI mode';
-  practiceRestartRequested = true;
+  practiceModeRequested = true;
   clearHeld();
   updateUI();
 };

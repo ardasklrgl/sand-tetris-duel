@@ -17,6 +17,16 @@ class PracticeMatch:
         self.search_rng = np.random.default_rng(np.random.SeedSequence([seed, 731]))
         self.turn, self.result, self.closed = 0, None, False
         self.last_think_ms = self.total_think_ms = 0.0
+        self.ai_moves = 0
+
+    def set_mode(self, mode):
+        if mode not in ('human', 'ai'):
+            raise ValueError('Choose a valid practice mode.')
+        with self.lock:
+            if self.closed:
+                raise ValueError('This practice session has closed.')
+            self.mode = mode
+            return self.state()
 
     def close(self):
         with self.lock:
@@ -28,7 +38,8 @@ class PracticeMatch:
             return dict(id=self.id, seed=self.seed, turn=self.turn, limit=self.limit, mode=self.mode,
                         result=self.result, ready=not self.closed and not self.result, error=None,
                         last_think_ms=self.last_think_ms,
-                        average_think_ms=self.total_think_ms / self.turn if self.turn else 0.0,
+                        ai_moves=self.ai_moves,
+                        average_think_ms=self.total_think_ms / self.ai_moves if self.ai_moves else 0.0,
                         piece=dict(shape=self.env.piece.base_shape, color=self.env.piece.color_idx),
                         boards=dict(human=board, ai=board))
 
@@ -60,6 +71,7 @@ class PracticeMatch:
             if self.mode == 'ai':
                 self.last_think_ms = think_ms
                 self.total_think_ms += think_ms
+                self.ai_moves += 1
             self.stats.record(before, env, info)
             self.turn += 1
             if env.done:
