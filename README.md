@@ -1,6 +1,6 @@
 <h1 align="center">Sand Tetris Duel</h1>
 
-<p align="center"><strong>A human vs AI sand game. Same pieces. Who clears more?</strong></p>
+<p align="center"><strong>A human vs AI sand game. Who clears more?</strong></p>
 
 <p align="center">
   <a href="https://www.sandtrisduel.lol/"><strong>Play the game</strong></a> ·
@@ -16,15 +16,18 @@
   <code>Canvas / WebGL</code> <code>SQLite</code> <code>Docker</code> <code>Render</code>
 </p>
 
+<img width="1270" height="830" alt="Ekran Resmi 2026-11-16 17 48 29" src="https://github.com/user-attachments/assets/349787e7-bde2-4707-af1f-b5cac4fceb59" />
+
 ## The website
 
-I built this so people could play against my Sandtris AI and see how they compare. Pieces break into sand, and a connected group of one color clears when it touches both walls.
+I trained an AI to play the Sandtris. It is pretty decent from my test runs. It managed to survive 216,892 steps/pieces at one run, which is over 24 hours of gameplay, at about 0.25-0.3s per piece. The AI doesn't run that fast in the duel mode, instead it matches your speed for better experience. You can see in real time where the AI is placing the pieces, and the same seed helps since you are basically playing the same game. More technical details of the AI can be found here: <a href="https://github.com/ardasklrgl/SandtrisAI/"><strong>SandtrisAI</strong></a>
 
-### Duel
+I built this so people could play against my Sandtris AI and see how they compare. 
 
-You and the AI receive the same sequence of shapes and colors. After 100 pieces, whoever cleared more grains wins. You can replay a seed or share it with someone else to try the same game.
+Pieces break into sand, and a connected group of one color clears when it touches both walls. You and the AI get the same pieces based on a seed. The one who clears more sand grains with 100 pieces wins.
 
-<!-- Optional Duel clip: assets/readme/duel.gif -->
+Signed in matches contribute to your record and the leaderboard when they finish. The leaderboard ranks players by wins minus losses, with grains cleared breaking ties.
+
 
 ### Practice
 
@@ -34,11 +37,19 @@ You and the AI receive the same sequence of shapes and colors. After 100 pieces,
 - Toggle **AI hints** to see a heatmap along the pile. Stronger placements glow more brightly; weaker ones fade into the background. Hints are available during human play and while AI mode is paused, and are excluded from Duel.
 - Track grains, clears, pile height, board averages and move timings in the stats panels.
 
-<!-- Optional Practice / hints clip: assets/readme/practice.gif -->
+<img width="1331" height="862" alt="Ekran Resmi 2026-11-16 17 54 58" src="https://github.com/user-attachments/assets/299db724-da6b-4a99-84c2-4ad7e96d2485" />
+
 
 ### Accounts and leaderboard
 
-Completed signed-in duels contribute to your record and the global standings. Players are ranked by wins minus losses, with total grains cleared breaking ties. Guest games also have a separate record in the current browser.
+- Completed signed-in duels contribute to your record and the global standings.
+- Players are ranked by wins minus losses, with total grains cleared breaking ties.
+- Guest games also have a separate record in the current browser.
+- Includes detailed stats for AI vs Humans
+
+<img width="1249" height="742" alt="Ekran Resmi 2026-11-16 17 55 23" src="https://github.com/user-attachments/assets/00adebc8-1c30-469f-9904-f79894feed2a" />
+
+<img width="1358" height="548" alt="Ekran Resmi 2026-11-16 18 04 40" src="https://github.com/user-attachments/assets/d11033b3-5807-4816-9a4f-73d86a121423" />
 
 ### Interface and controls
 
