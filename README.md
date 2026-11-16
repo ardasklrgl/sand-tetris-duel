@@ -11,10 +11,14 @@
 
 <!-- MAIN DEMO: paste your GitHub-uploaded video URL here, or embed assets/readme/demo.gif. -->
 
-<p align="center">
-  <code>Python</code> <code>C</code> <code>JavaScript</code>
-  <code>Canvas / WebGL</code> <code>SQLite</code> <code>Docker</code> <code>Render</code>
-</p>
+<div align="center">
+
+[![Languages](https://img.shields.io/badge/Languages-Python%203.12%20%7C%20C99%20%7C%20JavaScript-blue.svg)](#how-it-works)
+[![Simulation](https://img.shields.io/badge/Simulation-C--Accelerated-brightgreen.svg)](#how-it-works)
+[![Algorithm](https://img.shields.io/badge/Algorithm-CMA--ES%20%2B%20Color%20Lookahead-orange.svg)](#how-it-works)
+[![Deployment](https://img.shields.io/badge/Deployment-Docker%20%2B%20Render-purple.svg)](#run-locally)
+
+</div>
 
 <img width="1270" height="830" alt="Ekran Resmi 2026-11-16 17 48 29" src="https://github.com/user-attachments/assets/349787e7-bde2-4707-af1f-b5cac4fceb59" />
 
@@ -59,28 +63,19 @@ The site has a frosted frame, black game boards and an animated text background.
 
 ## How it works
 
-| Part | What it does |
-| --- | --- |
-| **JavaScript, HTML and CSS** | Controls, pages, animation playback and UI. Canvas draws the game; WebGL renders the text background. |
-| **Python** | Game sessions, turn handling, AI search and HTTP endpoints. |
-| **C** | Sand simulation and candidate-placement evaluation. |
-| **NumPy** | Feature vectors and weighted AI scoring. |
-| **SQLite** | Accounts, sessions and completed signed-in results. |
-| **Docker / Render** | Builds and hosts the deployed game. |
+The website splits the work between the browser, a **Python server**, and a **C simulation core**. JavaScript handles your controls and draws the boards with Canvas, while WebGL renders the animated text background. When you drop a piece, the browser sends its placement to the server. The server runs the physics, updates the score, and returns the resulting board and sand-animation frames for the browser to play back.
 
-### AI and inference
+The board is an **85 × 150 grain grid**, and each piece breaks into 100 grains. After a placement, the sand settles and the game checks for connected groups of the same color touching both walls. Those grains are removed, then the remaining sand settles again, which can lead to another clear. Both duel boards use the same physics and receive the same seeded sequence of pieces.
 
-The AI uses a trained weighted evaluator with two-step color lookahead. It scores up to **68 placements** (17 columns × 4 rotations) using **24 clipped board features**, then runs lookahead on the best three.
+The AI scores possible placements using **24 board features**, including pile height, bumpiness, color connectivity and gaps. These features are normalized and clipped, then combined with a learned weight vector using NumPy. I optimized the weights offline with **CMA-ES**, which evaluates different weight vectors over games and adapts its search toward better-performing ones. During gameplay the weights stay fixed: inference consists of simulating and scoring moves. The training side of the project is in [Sandtris AI](https://github.com/ardasklrgl/SantrisAI).
 
-For lookahead, it samples one shape for each possible next color. It uses the same samples to compare candidates, combining the current placement score with their average best future score.
+For each move, the bot evaluates up to **68 placements**: 17 horizontal positions across four rotations. It takes the best three into a second search step. Since the next piece's color matters a lot, the lookahead samples one shape for each of the four possible colors and uses the same samples for every candidate. It combines the immediate score with half the average best future score. This lets it consider what a placement sets up, alongside what it clears immediately. The expensive sand simulations and spatial feature evaluation run in C; Python coordinates the search.
 
-Inference and authoritative sand physics run on the server. The browser sends moves and renders the returned board states and animation frames.
+To keep Duel responsive, random games cycle through **20 seeds with precomputed AI actions**. For custom seeds, the server prepares up to six moves ahead while you play. Practice evaluates moves live, so the AI can take over a board you've already built. Calculation speed depends on the position and server load, and the stats panels show move timings as you play.
 
-### Keeping moves responsive
+The hint heatmap uses the same trained evaluator, averaging placement scores across valid rotations before lookahead. It blends stronger choices into brighter regions along the pile, with weaker choices fading away. It therefore explains the evaluator's preferences without necessarily predicting the full search's final choice. Hints are restricted to Practice, and AI mode only displays them while paused.
 
-Duel cycles through **20 precomputed seeds**, so those AI actions are already available. For custom seeds, the server prepares up to six moves ahead while you play. Practice calculates AI moves live so it can take over a board built by a human. Move times depend on the position and server load.
-
-The hint heatmap averages evaluator scores across valid rotations, **before lookahead**. It shows what the evaluator prefers, so it won't always match the full search's final choice.
+Accounts and completed signed-in results are stored in **SQLite**, while active games stay in server memory. The server determines the final result before adding it to the leaderboard. The app is packaged with **Docker** and deployed on **Render**.
 
 ## Run locally
 
