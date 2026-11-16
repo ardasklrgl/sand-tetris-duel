@@ -1,0 +1,98 @@
+/* Shared frosted surfaces and Practice hints; player palette is unchanged. */
+
+body.is-polished main{background:transparent;box-shadow:none}
+body.is-polished main::before{
+  inset:0 -8px;border-radius:26px;
+  background:rgba(17,18,25,.36);
+  backdrop-filter:blur(11px) saturate(110%);-webkit-backdrop-filter:blur(11px) saturate(110%);
+  border:0;
+  box-shadow:0 24px 64px #0006;
+}
+@supports not (backdrop-filter:blur(1px)){body.is-polished main::before{background:#111219ec}}
+body.is-polished .board-frame{position:relative;background:#030305;border:1px solid #ffffff12;box-shadow:0 18px 34px #000b,0 5px 12px #0008;isolation:isolate}
+body.is-polished .board-frame .board-title{background:#000;padding:12px 14px 10px}
+body.is-polished .board-title h2{font-weight:500}
+body.is-polished .board-title h2::before{border-radius:1px}
+body.is-polished .board-frame canvas{background:#000}
+body.is-polished .match-panel,body.is-polished .scoreboard,body.is-polished .game-leaderboard{background:#000;box-shadow:0 18px 34px #000b,0 5px 12px #0008}
+body.is-polished .match-panel button,body.is-polished .practice-mode button{transition:background .18s ease;box-shadow:none}
+body.is-polished .site-panel .panel-cta,body.is-polished .auth-form .auth-submit{transition:background-color .18s ease,border-color .18s ease}
+body.is-polished .settings input,body.is-polished .practice-mode input{box-shadow:inset 0 2px 5px #0006;border-color:#ffffff20;background:#090a10}
+body.is-polished .settings input:focus-visible,body.is-polished .practice-mode input:focus-visible{border-color:var(--you)}
+body.is-polished .site-nav a,body.is-polished .site-nav button{position:relative;transition:color .16s ease}
+body.is-polished .site-nav a::after,body.is-polished .site-nav button::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;background:currentColor;transform:scaleX(0);transform-origin:left;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+body.is-polished .site-nav a:hover::after,body.is-polished .site-nav a[aria-current=page]::after,body.is-polished .site-nav button:hover::after{transform:scaleX(1)}
+body.is-polished progress{box-shadow:inset 0 1px 2px #0008}
+.polish-paused{position:absolute;inset:35px 0 0;display:grid;place-items:center;background:#0005;pointer-events:none;opacity:0;transition:opacity .2s ease}
+.polish-paused button{font:11px var(--mono);color:var(--ink);padding:9px 14px;border:1px solid #ffffff24;border-radius:8px;background:#000;pointer-events:none;cursor:pointer}
+body.is-polished.is-paused .polish-paused{opacity:1}
+body.is-polished.is-paused .polish-paused button{pointer-events:auto}
+body.is-polished .duel-stage .result[hidden]{display:none!important}
+body.is-polished .duel-stage .result{
+  --finish-color:var(--you);position:absolute;z-index:4;left:50%;top:var(--board-center,45%);transform:translate(-50%,-50%);
+  width:350px;max-width:calc(100% - 24px);padding:26px;display:flex;flex-direction:column;gap:16px;
+  border:0;border-radius:18px;
+  background:rgba(17,18,25,.53);backdrop-filter:blur(14px) saturate(108%);-webkit-backdrop-filter:blur(14px) saturate(108%);
+  box-shadow:0 22px 55px #000a;
+  color:var(--ink);text-align:center;isolation:isolate;
+}
+body.is-polished .duel-stage .result.is-ai-win{--finish-color:var(--ai)}
+body.is-polished .result.is-arriving{animation:polish-finish-in .55s cubic-bezier(.16,1,.3,1) both}
+@keyframes polish-finish-in{from{opacity:0;transform:translate(-50%,calc(-50% + 12px))}to{opacity:1;transform:translate(-50%,-50%)}}
+
+
+body.is-polished .result .result-copy{display:block;width:100%}body.is-polished .result h2{font:600 24px/1.2 var(--mono);letter-spacing:-.7px;margin:0;color:var(--finish-color)}.polish-result-caption{font:10px/1.6 var(--mono);color:var(--muted);margin:0}
+body.is-polished .result .polish-result-caption{display:block;margin-top:14px}
+.polish-score-pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;padding:16px 0;border-top:1px solid #ffffff14;border-bottom:1px solid #ffffff14}
+.polish-score-pair.is-solo{grid-template-columns:1fr}
+.polish-score-pair div{display:grid;gap:5px;min-width:0}.polish-score-pair span{font-size:10px;color:var(--muted)}.polish-score-pair b{font-size:26px;line-height:1.2;font-weight:500;font-variant-numeric:tabular-nums;color:var(--you)}.polish-score-pair .polish-ai b{color:var(--ai)}
+.polish-result-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;width:100%}
+body.is-polished .duel-stage .result button{margin:0;padding:10px 14px;border-radius:8px;font:11px var(--mono);background:var(--finish-color);color:#101116;border:0;box-shadow:inset 0 1px 0 #ffffff30}
+body.is-polished .duel-stage .result button.polish-secondary{background:#292b36;color:var(--ink)}body.is-polished .duel-stage .result button.polish-close{position:absolute;top:9px;right:9px;padding:6px;background:transparent;color:var(--muted);box-shadow:none;width:26px;height:26px;display:grid;place-items:center}
+.polish-close svg{width:14px;height:14px}
+@media(max-width:700px){body.is-polished main::before{inset:0;border-radius:22px;backdrop-filter:blur(7px) saturate(108%);-webkit-backdrop-filter:blur(7px) saturate(108%)}}
+@media(max-width:480px){body.is-polished main::before{border-radius:20px 20px 0 0;border-left:0;border-right:0}body.is-polished .duel-stage .result{padding:18px;gap:12px}.polish-score-pair{padding:12px 0}.polish-score-pair b{font-size:24px}body.is-polished .result h2{font-size:22px}}
+@media(prefers-reduced-motion:reduce){body.is-polished *,body.is-polished *::before,body.is-polished *::after{animation:none!important;transition:none!important}}
+@media(max-width:480px){body.is-polished .duel-stage .result{padding:16px;gap:8px}.polish-score-pair{padding:10px 0}}
+
+
+body.is-polished.practice-page main{max-width:760px}
+body.is-polished.practice-page .match-panel{max-width:none}
+body.is-polished.practice-page .site-nav{flex-basis:auto;margin-left:auto;justify-content:flex-end}
+body.is-polished.practice-page header.nav-wrapped .site-nav{margin-left:0;justify-content:flex-start}
+body.is-polished.practice-page .boards{grid-template-columns:minmax(0,1fr) minmax(0,340px) minmax(0,1fr);gap:16px;align-items:start}
+body.is-polished.practice-page .boards>.human{grid-column:2;grid-row:1}
+body.is-polished.practice-page .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.polish-detail-panel{background:#000;border-radius:12px;padding:16px 12px;box-shadow:0 18px 34px #000b,0 5px 12px #0008;min-width:0}
+.polish-detail-panel h3{font:500 11px/1.4 var(--mono);margin:0 0 22px;color:var(--ink)}
+.polish-detail-panel dl{display:grid;gap:24px;margin:0}.polish-detail-panel dl div{min-width:0}
+.polish-detail-panel dt{font:10px/1.5 var(--mono);color:var(--muted);margin:0 0 5px}
+.polish-detail-panel dd{font:500 15px/1.4 var(--mono);font-variant-numeric:tabular-nums;color:var(--you);margin:0;overflow-wrap:anywhere}
+body.is-practice-ai .polish-detail-panel dd{color:var(--ai)}
+.polish-detail-left{grid-column:1;grid-row:1}.polish-detail-right{grid-column:3;grid-row:1}
+body.is-resuming *,body.is-resuming *::before,body.is-resuming *::after{transition:none!important}
+@media(max-width:700px){body.is-polished.practice-page .boards{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}body.is-polished.practice-page .boards>.human{grid-column:1/-1;grid-row:1;width:min(100%,340px);justify-self:center}.polish-detail-left{grid-column:1;grid-row:2}.polish-detail-right{grid-column:2;grid-row:2}}
+@supports not (backdrop-filter:blur(1px)){body.is-polished .duel-stage .result{background:#111219f7}}
+
+
+body.is-polished button,body.is-polished button:hover,body.is-polished button:active,body.is-polished .panel-cta,body.is-polished .panel-cta:hover{transform:none!important;box-shadow:none!important}
+
+body.is-polished:not(.is-paused) .controls button:disabled{opacity:1}
+body.is-polished .controls button:hover,body.is-polished #drop:hover,body.is-polished #ai-mode:hover,body.is-polished .auth-form .auth-submit:hover:enabled,body.is-polished .site-panel a.panel-cta[href^="/login"]:hover,body.is-polished .auth-submit:hover,body.is-polished .panel-cta:hover,body.is-polished .duel-stage .result button:hover{background:#292b36;filter:none;box-shadow:none}
+
+
+body.is-polished #drop:hover,body.is-polished #ai-mode:hover,body.is-polished .auth-form .auth-submit:hover:enabled,body.is-polished .site-panel a.panel-cta[href^="/login"]:hover,body.is-polished .duel-stage .result button:not(.polish-secondary):hover,body.is-polished #polish-back-to-game:hover{background:#292b36;color:#101116}
+body.is-polished .polish-paused .polish-resume,body.is-polished .polish-paused .polish-resume:hover{background:#000;color:var(--ink);border:0}
+
+
+.practice-mode{flex-wrap:wrap}
+.polish-mode-buttons{display:inline-flex;gap:8px;align-items:center;flex:none}
+body.is-polished .practice-mode #polish-ai-hints{min-width:90px;background:#000;color:var(--ink);border:1px solid var(--line)}
+body.is-polished .practice-mode #polish-ai-hints[aria-pressed=true]{background:var(--ai);color:#101116}
+body.is-polished .practice-mode #polish-ai-hints[aria-pressed=true]:hover{background:#292b36;color:#101116}
+.board-frame .polish-hints-canvas{position:absolute;left:0;display:block;width:100%;height:auto;aspect-ratio:17/30;background:transparent!important;border:0!important;pointer-events:none;z-index:1;image-rendering:auto}
+.polish-hint-color{position:absolute;visibility:hidden;color:var(--ai);pointer-events:none}
+.polish-hint-notice{display:block;font:10px/1.5 var(--mono);color:var(--muted);text-align:center}
+.polish-hint-notice:empty{display:none}
+.polish-paused{z-index:2}
+body.is-polished .duel-stage .result button.polish-close:hover{background:transparent;color:var(--muted)}

@@ -11,6 +11,7 @@ import time
 from urllib.parse import parse_qs, urlparse
 import web_demo as original
 from web_practice import PracticeMatch
+from web_hints import placement_hints
 from web_accounts import AccountStore
 
 TITLE = 'Sand Tetris Duel · Drift'
@@ -647,6 +648,59 @@ def practice_document(user):
 
 
 class PreviewHandler(original.DemoHandler):
+    def respond(self, status, payload, content_type="application/json"):
+        if content_type.startswith('text/html') and status == 200:
+            document = payload.decode()
+            document = re.sub(r'<body([^>]*)>', r'<body\1><script>document.body.classList.add("is-polished");</script>', document, count=1)
+            document = document.replace('</head>', '<link rel="stylesheet" href="/polish.css"></head>', 1)
+            document = document.replace('</body>', '<script src="/polish.js"></script><script src="/hints.js"></script></body>', 1)
+            payload = document.encode()
+        return super().respond(status, payload, content_type)
+
+    def serve_video(self):
+        """Byte ranges let the same footage position survive page navigation."""
+        video = BEACH_ASSETS / 'night-beach.mp4'
+        size = video.stat().st_size
+        start, end = 0, size - 1
+        requested = self.headers.get('Range')
+        if requested:
+            try:
+                unit, interval = requested.split('=', 1)
+                left, right = interval.split('-', 1)
+                if unit != 'bytes' or ',' in interval:
+                    raise ValueError('Unsupported range')
+                if left:
+                    start, end = int(left), min(int(right), end) if right else end
+                else:
+                    start = max(0, size - int(right))
+                if not 0 <= start <= end < size:
+                    raise ValueError('Invalid range')
+            except ValueError:
+                self.send_response(416)
+                self.send_header('Content-Range', f'bytes */{size}')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+        self.send_response(206 if requested else 200)
+        self.send_header('Content-Type', 'video/mp4')
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Content-Length', str(end - start + 1))
+        if requested:
+            self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+        self.end_headers()
+        try:
+            with video.open('rb') as source:
+                source.seek(start)
+                remaining = end - start + 1
+                while remaining:
+                    chunk = source.read(min(remaining, 65536))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def current_user(self):
         jar = cookies.SimpleCookie()
         try:
@@ -712,8 +766,29 @@ class PreviewHandler(original.DemoHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
+        if path == '/api/practice/hints':
+            try:
+                query = parse_qs(urlparse(self.path).query)
+                match = self.get_match(query.get('id', [None])[0])
+                if not isinstance(match, PracticeMatch):
+                    raise ValueError('Hints are only available for Practice.')
+                turn = int(query.get('turn', ['-1'])[0])
+                rotation = int(query.get('rotation', ['0'])[0])
+                if not 0 <= rotation < 4:
+                    raise ValueError('Invalid rotation.')
+                self.respond(200, placement_hints(match, turn, rotation))
+            except (ValueError, TypeError) as error:
+                self.respond(400, {'error':str(error)})
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
+        if path == '/beach-assets/night-beach.mp4':
+            return self.serve_video()
         user = self.current_user()
         assets = {
+            "/polish.css": (ROOT / "web" / "polish.css", "text/css; charset=utf-8"),
+            "/polish.js": (ROOT / "web" / "polish.js", "text/javascript; charset=utf-8"),
+            "/hints.js": (ROOT / "web" / "hints.js", "text/javascript; charset=utf-8"),
             "/practice.js": (ROOT / "web" / "practice.js", "text/javascript; charset=utf-8"),
             "/favicon.png": (ROOT / "web" / "favicon.png", "image/png"),
             "/beach-background.js": (ROOT / "web" / "beach-background.js", "text/javascript; charset=utf-8"),

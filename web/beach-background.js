@@ -20,7 +20,7 @@ const paletteKey='sandtris-palette-time';
 let savedPaletteTime=0;
 try{savedPaletteTime=Number(sessionStorage.getItem(paletteKey))||0;}catch(_){}
 let playing=!reduced.matches,ready=false,text='',cols=1,rows=1,frame=0,last=0,paletteTime=savedPaletteTime,paletteLast=0;
-const gl=canvas.getContext('webgl',{alpha:false,antialias:false,preserveDrawingBuffer:false});
+const gl=canvas.getContext('webgl',{alpha:false,antialias:false,preserveDrawingBuffer:true});
 function fail(message){console.warn('Beach background:',message);canvas.hidden=true;if(toggle){toggle.disabled=true;toggle.textContent='Background unavailable';}}
 if(!gl){fail('Text rendering is unavailable in this browser.');return;}
 const vs=`attribute vec2 position;varying vec2 uv;void main(){uv=vec2((position.x+1.)*.5,(1.-position.y)*.5);gl_Position=vec4(position,0.,1.);}`;
@@ -83,7 +83,8 @@ const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferDa
 const loc=Object.fromEntries(['scene','letters','glowLetters','grid','viewport','videoSize','brightness','glow','threshold','sceneTarget','colorA','colorB','pointer','pointerActive'].map(n=>[n,gl.getUniformLocation(program,n)]));
 function texture(unit){gl.activeTexture(gl.TEXTURE0+unit);const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);return t;}
 const scene=texture(0),letters=texture(1),glowLetters=texture(2);gl.uniform1i(loc.scene,0);gl.uniform1i(loc.letters,1);gl.uniform1i(loc.glowLetters,2);
-function resize(){const dpr=Math.min(devicePixelRatio||1,1.5);canvas.width=Math.round(innerWidth*dpr);canvas.height=Math.round(innerHeight*dpr);gl.viewport(0,0,canvas.width,canvas.height);
+let viewportKey='';
+function resize(){const dpr=Math.min(devicePixelRatio||1,1.5);const key=[innerWidth,innerHeight,dpr,controls.size.value].join(':');if(key===viewportKey)return;viewportKey=key;canvas.width=Math.round(innerWidth*dpr);canvas.height=Math.round(innerHeight*dpr);gl.viewport(0,0,canvas.width,canvas.height);
  const fontSize=+controls.size.value;cols=Math.ceil(innerWidth/(fontSize*.6));rows=Math.ceil(innerHeight/(fontSize*1.15));
  const mask=document.createElement('canvas');mask.width=canvas.width;mask.height=canvas.height;const ctx=mask.getContext('2d');ctx.scale(dpr,dpr);ctx.fillStyle='#000';ctx.fillRect(0,0,innerWidth,innerHeight);ctx.fillStyle='#fff';ctx.font=`500 ${fontSize}px Menlo,Consolas,monospace`;ctx.textBaseline='middle';
  // Explicit cells keep every word stable when only the footage changes.
@@ -116,13 +117,14 @@ function resize(){const dpr=Math.min(devicePixelRatio||1,1.5);canvas.width=Math.
 function hsl(h,s,l){h=((h%360)+360)%360/360;const a=s*Math.min(l,1-l);return [0,8,4].map(n=>{const k=(n+h*12)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1));});}
 function palette(){const hue=265+paletteTime*.85;gl.uniform3fv(loc.colorA,hsl(hue,.72,.66));gl.uniform3fv(loc.colorB,hsl(hue+150,.72,.66));const root=document.documentElement;root.style.setProperty('--ai',`hsl(${hue} 72% 77%)`);root.style.setProperty('--you',`hsl(${hue+150} 72% 77%)`);}
 function draw(){if(!ready||gl.isContextLost())return;gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,scene);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video);gl.uniform2f(loc.videoSize,video.videoWidth,video.videoHeight);gl.uniform1f(loc.brightness,+controls.light.value);gl.uniform1f(loc.glow,+controls.glow.value);gl.uniform1f(loc.threshold,+controls.threshold.value);gl.uniform2f(loc.pointer,pointerX,pointerY);gl.uniform1f(loc.pointerActive,pointerActive);palette();gl.drawArrays(gl.TRIANGLES,0,6);canvas.dataset.ready='true';}
-function savePalette(){try{sessionStorage.setItem(paletteKey,String(paletteTime));}catch(_){}}
-function tick(now){frame=0;if(!playing||document.hidden)return;if(paletteLast)paletteTime+=Math.min((now-paletteLast)/1000,.1);paletteLast=now;if(now-last>1000/24){draw();last=now;}frame=requestAnimationFrame(tick);}
+function savePalette(){try{sessionStorage.setItem(paletteKey,String(paletteTime));sessionStorage.setItem('sandtris-video-time',String(video.currentTime));}catch(_){}}
+function tick(now){frame=0;if(!playing||document.hidden)return;if(paletteLast)paletteTime+=Math.min((now-paletteLast)/1000,.1);paletteLast=now;if(now-last>=1000/60-0.5){draw();last=now;}frame=requestAnimationFrame(tick);}
 function sync(){
   paletteLast=0;
   if(toggle){toggle.textContent=playing?'Still background':'Animate background';toggle.setAttribute('aria-pressed',String(!playing));}
   cancelAnimationFrame(frame);frame=0;
   if(playing&&!document.hidden){
+    draw();
     video.play().then(()=>{if(!frame)frame=requestAnimationFrame(tick);})
       .catch(()=>{playing=false;video.pause();sync();});
   }else video.pause();
@@ -130,6 +132,16 @@ function sync(){
 text=await fetch('/beach-assets/sandtris-readme.txt').then(r=>{if(!r.ok)throw Error('README text could not load.');return r.text();});
 if(!text.trim())throw Error('README text is empty.');
 await new Promise((resolve,reject)=>{if(video.error)return reject(Error('Beach footage could not load.'));if(video.readyState>=2)return resolve();video.addEventListener('loadeddata',resolve,{once:true});video.addEventListener('error',()=>reject(Error('Beach footage could not load.')),{once:true});});
+let savedVideoTime=0;
+try{savedVideoTime=Number(sessionStorage.getItem('sandtris-video-time'))||0;}catch(_){}
+if(savedVideoTime>0&&Number.isFinite(video.duration)&&video.duration>0){
+  await new Promise(resolve=>{
+    const finishSeek=()=>{clearTimeout(timeout);video.removeEventListener('seeked',finishSeek);resolve();};
+    const timeout=setTimeout(finishSeek,1200);
+    video.addEventListener('seeked',finishSeek,{once:true});
+    video.currentTime=savedVideoTime%video.duration;
+  });
+}
 ready=true;video.playbackRate=+controls.speed.value;resize();sync();
 if(toggle)toggle.addEventListener('click',()=>{playing=!playing;sync();});
 addEventListener('resize',resize);addEventListener('pagehide',savePalette);

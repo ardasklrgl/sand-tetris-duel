@@ -287,6 +287,7 @@ async function commitDrop() {
 }
 
 function togglePause() {
+  if (animation) animation.lastTime = performance.now();
   if ((busy && !practice) || !state || state.result) return;
   paused = !paused; clearHeld(); gravityTimer = 0; updateUI();
 }
@@ -294,7 +295,7 @@ function togglePause() {
 function frame(now) {
   const dt = Math.min(80, now - (lastTime || now));
   lastTime = now;
-  if (animation) {
+  if (animation && !document.hidden && !paused) {
     const elapsed = Math.max(0, now - animation.lastTime);
     animation.lastTime = Math.max(now, animation.lastTime);
     animation.ticks += elapsed * sandSpeed / (1000 / 60);
@@ -345,8 +346,22 @@ document.addEventListener('keydown', event => {
   if (['p', 'P'].includes(event.key)) togglePause();
 });
 document.addEventListener('keyup', event => stopHold(keyActions[event.key]));
-window.addEventListener('blur', () => { clearHeld(); if (state && !busy && !state.result) { paused = true; updateUI(); } });
-document.addEventListener('visibilitychange', () => { clearHeld(); gravityTimer = 0; lastTime = 0; });
+window.addEventListener('blur', clearHeld);
+let resumeAfterVisibility = false;
+document.addEventListener('visibilitychange', () => {
+  clearHeld(); gravityTimer = 0; lastTime = 0;
+  if (animation) animation.lastTime = performance.now();
+  if (document.hidden) {
+    resumeAfterVisibility = !paused;
+    paused = true;
+  } else {
+    if (resumeAfterVisibility) paused = false;
+    resumeAfterVisibility = false;
+    document.body.classList.add('is-resuming');
+    requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('is-resuming')));
+  }
+  updateUI();
+});
 for (const [id, dx, dy] of [['left', -1, 0], ['right', 1, 0], ['down', 0, 1]]) {
   $(id).addEventListener('pointerdown', event => { event.preventDefault(); startHold(id); $(id).setPointerCapture(event.pointerId); });
   $(id).addEventListener('pointerup', () => { stopHold(id); $('human-board').focus({preventScroll: true}); });
