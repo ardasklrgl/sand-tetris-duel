@@ -32,15 +32,14 @@
   colorProbe.className = 'polish-hint-color';
   colorProbe.setAttribute('aria-hidden', 'true');
   board.parentElement.append(colorProbe);
-  const notice = document.createElement('span');
-  notice.className = 'polish-hint-notice';
-  notice.setAttribute('role', 'status');
-  modeButtons.parentElement.after(notice);
   let enabled = false, data = null, requested = '', controller = null;
   let painted = '', lastColorCheck = 0, color = [170, 160, 230], retryAt = 0;
   let seenKey = '';
   function key() {
     return state && !state.result ? `${state.id}:${state.turn}` : '';
+  }
+  function eligible() {
+    return enabled && state && !state.result && !document.hidden && (state.mode === 'human' || paused);
   }
   function align() { canvas.style.top = `${board.offsetTop}px`; }
   new ResizeObserver(align).observe(board);
@@ -58,7 +57,6 @@
   button.onclick = () => {
     enabled = !enabled;
     button.setAttribute('aria-pressed', String(enabled));
-    notice.textContent = '';
     if (!enabled) {
       controller?.abort(); controller = null; requested = ''; data = null; clear();
     }
@@ -72,21 +70,23 @@
     try {
       const response = await fetch(`/api/practice/hints?id=${encodeURIComponent(id)}&turn=${turn}`, {signal:request.signal});
       const next = await response.json();
-      if (!enabled || request.signal.aborted || current !== key()) return;
+      if (!eligible() || request.signal.aborted || current !== key()) return;
       if (!response.ok) throw new Error(next.error || 'Hints unavailable');
       data = next;
       painted = '';
-      notice.textContent = '';
     } catch (error) {
-      if (request.signal.aborted || current !== key() || !enabled) return;
+      if (request.signal.aborted || current !== key() || !eligible()) return;
       requested = ''; retryAt = performance.now() + 1500;
-      notice.textContent = 'Hints unavailable for this move.';
     }
   }
   function paint(now) {
     const current = key();
     if (current !== seenKey) { seenKey = current; retryAt = 0; }
-    if (!enabled || !current) { if (painted) clear(); return; }
+    if (!eligible() || !current) {
+      controller?.abort(); controller = null; requested = ''; data = null;
+      if (painted) clear();
+      return;
+    }
     if (requested !== current && now >= retryAt) {
       data = null; clear();
       requestHints(current);
@@ -186,10 +186,9 @@
   }
   const originalDraw = draw;
   draw = function () {
-    // AI demonstration advances at its natural speed. With hints enabled,
-    // show the evaluated settled board so its landing heights remain accurate.
+    // Paused inspection uses the settled board. Running AI playback is unchanged.
     const playback = animation;
-    if (enabled && (state?.mode === 'ai' || paused)) animation = null;
+    if (eligible() && paused) animation = null;
     originalDraw();
     animation = playback;
     paint(performance.now());

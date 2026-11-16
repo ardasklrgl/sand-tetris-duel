@@ -25,7 +25,7 @@ updateUI = function () {
   $('ai-mode').disabled = !state;
   $('pause').disabled = !state || !!state.result;
   $('pause').textContent = paused ? 'Resume' : 'Pause';
-  $('practice-help').textContent = ai ? 'The AI plays at its own pace. Pause to take a closer look.' : 'Arrow keys or WASD: move, rotate, soft drop · Space: drop · P: pause';
+  $('practice-help').textContent = ai ? 'The AI plays at its own pace.' : 'Arrow keys or WASD: move, rotate, soft drop · Space: drop · P: pause';
   if (!state) return;
   const s = state.boards.human.stats;
   const items = [['Pieces', `${s.steps}/${state.limit}`], ['Clears', s.clears], ['Grains', s.grains.toLocaleString()], ['Clear %', `${s.clear_percentage.toFixed(1)}%`]];
