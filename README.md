@@ -1,26 +1,38 @@
 # Sand Tetris Duel
 
-A 100-piece Sand Tetris duel: you and the color-lookahead AI receive the same seeded pieces. Both boards use the local Sandtris C simulation and settle again after every clear, so no sand stays suspended. The Python server handles sand physics, AI moves, accounts, and completed-match standings.
+I built this so people could play against my Sandtris AI and see how they compare. It's Tetris with sand: pieces break into grains, and connecting one color from wall to wall clears it.
+
+**[Play here → sandtrisduel.lol](https://www.sandtrisduel.lol/)**
+
+## Features
+
+- **Duel:** you and the AI get the same seeded pieces. Clear more grains over 100 pieces to win.
+- **Practice:** choose the piece count, play yourself or let the AI take over. Switching modes keeps the same board.
+- **AI hints:** a heatmap along the pile shows which placements the evaluator prefers. Practice only; pause AI mode to inspect it.
+- **Detailed stats:** grains, clears, pile height, board averages and move timings.
+- **Replayable seeds:** replay a game or share its seed with someone else.
+- **Accounts and leaderboard:** completed signed-in duels count toward your record and the global standings.
+- Frosted UI, an animated text background and a continuously changing two-tone palette.
+
+## The AI / inference
+
+The AI uses a trained weighted evaluator with two-step color lookahead. It scores up to **68 placements** (17 columns × 4 rotations) using **24 clipped board features**, then runs lookahead on the best three. It samples one shape for each possible next color and uses the same samples to compare candidates by their average best future score.
+
+Python handles the search and game server. C handles the sand simulation and feature evaluation. The browser handles controls, rendering and animation; inference runs on the server.
+
+Duel cycles through **20 precomputed seeds** to avoid waiting for AI decisions. Custom seeds are evaluated live, with up to six moves prepared ahead. Practice AI calculates moves live so it can take over any human-built board. Its speed depends on the server and current position.
+
+The hint heatmap combines placement scores across valid rotations, before lookahead. It's a way to inspect the evaluator, so it won't always predict the full search's choice.
 
 ## Run locally
-
-With Docker installed:
 
 ```sh
 docker build -t sand-tetris-duel .
 docker run --rm -p 10000:10000 -v sandtris-duel-data:/app/data sand-tetris-duel
 ```
 
-Open http://127.0.0.1:10000. The health check is at `/health`.
+Open [localhost:10000](http://localhost:10000). The volume keeps accounts and leaderboard data in SQLite. Active games are held in memory and reset when the server restarts.
 
-Without Docker, install `requirements-web.txt`, compile `sandtris_c_core.c` into `sandtris_c_core.so` for your platform, and run `python web_flow.py`. The local default URL is http://127.0.0.1:8770. Set `SANDTRIS_DB_PATH` to choose where the SQLite account and leaderboard data lives; the local preview defaults to `/tmp/sandtris-duel-accounts.sqlite3`.
+**Controls:** arrows or WASD to move/rotate, Space to drop or resume, P to pause.
 
-## Publish a playtest
-
-Push this repository to GitHub. In Render, create a **Web Service** from it with **Language: Docker** and **Health Check Path: /health**. The Dockerfile starts the duel server on the host-provided port.
-
-The leaderboard counts completed matches started while signed in. It ranks players by wins minus losses, then total grains cleared. The game page's global AI-versus-human figures use those same completed matches; its separate browser-only record also includes guest games. Account and ranked match data is stored in SQLite; configure a persistent disk mounted at `/app/data` for a hosted service. In-progress matches remain in server memory and disappear on restart; the server handles up to 16 active matches. Use this version for a small playtest rather than a large public launch.
-
-New random matches rotate through 20 precomputed seeds, so their AI actions are ready from the first turn. Entering another seed still works: the server computes up to six future AI moves while the player is making moves. To regenerate the bundled plans after changing the AI, weights, or physics, run `python precompute_ai.py --count 20 --workers 4`. A source fingerprint disables stale plans automatically. Plan generation checks that search and replay receive the same pieces and produce the same boards.
-
-The game page previews the top 10 players. The leaderboard page includes a personal profile, AI/human comparisons, and standings paginated at 20 players. New matches record clears, placement counts, and pieces played; historical matches without those fields continue to count toward wins and grains. Run the account and ranking checks with `python -m unittest discover -s tests -v`.
+Run tests with `python -m unittest discover -s tests`.
