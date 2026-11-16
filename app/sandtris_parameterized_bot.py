@@ -1,7 +1,7 @@
 import numpy as np
 import ctypes
 import os
-from sandtris_env_v10 import SandtrisEnv, GRID_WIDTH, GRID_HEIGHT, BLOCK_GRAIN, GRAIN_SIZE, COLORS
+from .sandtris_env_v10 import SandtrisEnv, GRID_WIDTH, GRID_HEIGHT, BLOCK_GRAIN, GRAIN_SIZE, COLORS
 
 class EvalFrontierResult(ctypes.Structure):
     _fields_ = [
@@ -29,7 +29,7 @@ class EvalResult(ctypes.Structure):
         ("valid", ctypes.c_bool)
     ]
 
-_c_core = ctypes.CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandtris_c_core.so'))
+_c_core = ctypes.CDLL(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'native', 'sandtris_c_core.so'))
 
 _c_core.simulate_all_actions_combined.argtypes = [
     np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, flags='C_CONTIGUOUS'),

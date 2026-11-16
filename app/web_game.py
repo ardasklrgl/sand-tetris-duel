@@ -1,4 +1,4 @@
-"""Local, turn-synchronized Sandtris duel. Run: python web_game.py."""
+"""Local, turn-synchronized Sandtris duel. Run: python -m app.web_game."""
 import argparse
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -14,11 +14,11 @@ import time
 from urllib.parse import parse_qs, urlparse
 
 import numpy as np
-from sandtris_env_v10 import GRID_WIDTH, GRID_HEIGHT
-from sandtris_lookahead_bot import find_best_placement_lookahead
-from web_physics import LiveEnv
+from .sandtris_env_v10 import GRID_WIDTH, GRID_HEIGHT
+from .sandtris_lookahead_bot import find_best_placement_lookahead
+from .web_physics import LiveEnv
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 PLAN_SOURCES = (
     "web_game.py", "web_physics.py", "sandtris_env_v10.py",
     "sandtris_parameterized_bot.py", "sandtris_lookahead_bot.py",
@@ -34,13 +34,14 @@ def plan_fingerprint():
     digest = hashlib.sha256()
     for name in PLAN_SOURCES:
         digest.update(name.encode() + b"\0")
-        digest.update((ROOT / name).read_bytes())
+        folder = "app" if name.endswith(".py") else "native" if name.endswith(".c") else "models"
+        digest.update((ROOT / folder / name).read_bytes())
     return digest.hexdigest()
 
 
 def load_precomputed_plans():
     try:
-        data = json.loads((ROOT / "precomputed_ai.json").read_text())
+        data = json.loads((ROOT / "models" / "precomputed_ai.json").read_text())
         if data.get("fingerprint") != plan_fingerprint():
             return {}
         plans = {}
@@ -232,7 +233,7 @@ class Match:
 
 
 def load_weights():
-    weights = np.load(ROOT / "best_clipped_weights_run2.npy")
+    weights = np.load(ROOT / "models" / "best_clipped_weights_run2.npy")
     if weights.shape != (24,) or not np.all(np.isfinite(weights)):
         raise RuntimeError("Expected 24 finite weights in best_clipped_weights_run2.npy")
     return weights

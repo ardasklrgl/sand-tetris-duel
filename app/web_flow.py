@@ -1,4 +1,4 @@
-"""Playable flow design direction. Run: python web_flow.py."""
+"""Playable flow design direction. Run: python -m app.web_flow."""
 import argparse
 from http import cookies
 from html import escape
@@ -9,14 +9,14 @@ from pathlib import Path
 import threading
 import time
 from urllib.parse import parse_qs, urlparse
-import web_demo as original
-from web_practice import PracticeMatch
-from web_hints import placement_hints
-from web_accounts import AccountStore
+from . import web_demo as original
+from .web_practice import PracticeMatch
+from .web_hints import placement_hints
+from .web_accounts import AccountStore
 
 TITLE = 'Sand Tetris Duel · Drift'
 PORT = 8770
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 BEACH_ASSETS = ROOT / 'design' / 'beach' / 'assets'
 CSS = r"""
 *{box-sizing:border-box}button,input{transition:background .18s ease,box-shadow .18s ease}button:active:enabled{transform:translateY(1px)}::selection{background:var(--you);color:var(--bg)}input{caret-color:var(--you)}button:focus-visible,input:focus-visible{outline:2px solid var(--you);outline-offset:3px}.controls{margin-top:26px}.controls button{height:36px}.help{line-height:1.7;margin:14px 0 12px}.settings{padding-bottom:6px}.settings label{display:flex;align-items:center;gap:7px}.settings #seed{height:32px}.stats b{font-variant-numeric:tabular-nums}.boards canvas{width:100%;height:auto;max-height:none;aspect-ratio:17/30}.scoreboard{margin-top:26px;padding-top:26px}.footnote{line-height:1.6}.local-record{line-height:1.6}button svg{width:16px;height:16px;vertical-align:middle;pointer-events:none}.controls button{display:flex;justify-content:center;align-items:center;gap:5px}@media(max-width:480px){.help{font-size:10px}.controls{gap:5px}.controls button{height:38px}.settings{gap:6px}.settings #seed{width:96px}.settings button{height:32px;width:80px}}

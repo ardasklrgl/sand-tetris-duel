@@ -4,9 +4,9 @@ from unittest.mock import patch
 
 import numpy as np
 
-from web_game import load_weights
-from web_hints import placement_hints
-from web_practice import PracticeMatch
+from app.web_game import load_weights
+from app.web_hints import placement_hints
+from app.web_practice import PracticeMatch
 
 
 class HintTests(unittest.TestCase):
@@ -31,7 +31,7 @@ class HintTests(unittest.TestCase):
     def test_equal_scores_remain_faint(self):
         match = PracticeMatch(123, np.ones(24), 10, 'human')
         actions = [0, 1, 2, 17, 18, 19]
-        with patch('web_hints.extract_features', return_value=(actions, np.ones((6, 24)))):
+        with patch('app.web_hints.extract_features', return_value=(actions, np.ones((6, 24)))):
             hints = placement_hints(match, 0, 0)
         self.assertTrue(all(p['strength'] < .2 for p in hints['placements']))
 

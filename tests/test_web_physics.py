@@ -5,9 +5,9 @@ import unittest
 
 import numpy as np
 
-from sandtris_env_v10 import SandtrisEnv
-from web_game import calculate_ai_action, load_weights
-from web_physics import LiveEnv, PLAYBACK_FRAME_LIMIT
+from app.sandtris_env_v10 import SandtrisEnv
+from app.web_game import calculate_ai_action, load_weights
+from app.web_physics import LiveEnv, PLAYBACK_FRAME_LIMIT
 
 
 class WebPhysicsTests(unittest.TestCase):

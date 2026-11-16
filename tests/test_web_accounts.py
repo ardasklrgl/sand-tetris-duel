@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
-from web_accounts import AccountStore
+from app.web_accounts import AccountStore
 
 
 class StandingsTests(unittest.TestCase):

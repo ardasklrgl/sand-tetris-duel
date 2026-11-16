@@ -1,4 +1,4 @@
-"""Standalone console design preview. Run: python web_console.py --port 8768.
+"""Standalone console design preview. Run: python -m examples.web_console --port 8768.
 
 Reuses web_demo's match handler, JavaScript, physics, and canvas rendering.
 Only the surrounding HTML and CSS differ. The original demo stays untouched.
@@ -6,7 +6,7 @@ Only the surrounding HTML and CSS differ. The original demo stays untouched.
 import argparse
 from urllib.parse import urlparse
 
-import web_demo as original
+from app import web_demo as original
 
 CONSOLE_CSS = r"""
 /* All surface effects belong to the page casing, never to a game canvas. */

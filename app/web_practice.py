@@ -3,7 +3,7 @@ import secrets
 import threading
 import time
 import numpy as np
-import web_game as game
+from . import web_game as game
 
 
 class PracticeMatch:

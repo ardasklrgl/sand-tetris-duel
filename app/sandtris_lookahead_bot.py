@@ -1,6 +1,6 @@
 import numpy as np
-from sandtris_parameterized_bot import extract_features
-from sandtris_env_v10 import SHAPES
+from .sandtris_parameterized_bot import extract_features
+from .sandtris_env_v10 import SHAPES
 
 def find_best_placement_color_lookahead(env, weights, k=3, extraction_mode="clipped", rng=None):
     """

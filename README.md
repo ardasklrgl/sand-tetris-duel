@@ -77,6 +77,20 @@ The hint heatmap uses the same trained evaluator, averaging placement scores acr
 
 Accounts and completed signed-in results are stored in **SQLite**, while active games stay in server memory. The server determines the final result before adding it to the leaderboard. The app is packaged with **Docker** and deployed on **Render**.
 
+### Repository layout
+
+```text
+app/             Python server, gameplay, physics bindings and AI
+native/          C simulation source and compiled library
+models/          Trained weights and precomputed AI plans
+web/             Browser JavaScript, CSS and game rendering
+scripts/         Offline utilities, including AI plan generation
+examples/        Earlier standalone interface demos
+tests/           Gameplay, AI, account and ranking checks
+assets/readme/   README media
+design/          Background assets and design explorations
+```
+
 ## Run locally
 
 ### Docker
@@ -101,8 +115,8 @@ Use Python 3.12 and a C compiler on Linux or macOS:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-web.txt
-cc -O3 -std=c99 -shared -fPIC sandtris_c_core.c -o sandtris_c_core.so
-python web_flow.py
+cc -O3 -std=c99 -shared -fPIC native/sandtris_c_core.c -o native/sandtris_c_core.so
+python -m app.web_flow
 ```
 
 Open [localhost:8770](http://localhost:8770). Set `SANDTRIS_DB_PATH` to choose where account data is stored; the default is `/tmp/sandtris-duel-accounts.sqlite3`.

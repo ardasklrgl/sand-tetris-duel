@@ -2,8 +2,8 @@
 import time
 import unittest
 
-from web_demo import DemoMatch, DemoServer
-from web_game import Match, PRECOMPUTED_PLANS, load_weights
+from app.web_demo import DemoMatch, DemoServer
+from app.web_game import Match, PRECOMPUTED_PLANS, load_weights
 
 
 class PrecomputedAiTests(unittest.TestCase):

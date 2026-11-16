@@ -1,7 +1,7 @@
 """Read-only placement evaluation for the Practice hint overlay."""
 import numpy as np
-from sandtris_parameterized_bot import extract_features
-from web_game import ENGINE_LOCK
+from .sandtris_parameterized_bot import extract_features
+from .web_game import ENGINE_LOCK
 
 
 def placement_hints(match, turn, rotation):

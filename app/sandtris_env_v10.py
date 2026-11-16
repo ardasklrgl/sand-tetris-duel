@@ -7,7 +7,7 @@ import ctypes
 import os
 import copy
 
-_c_core = ctypes.CDLL(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandtris_c_core.so'))
+_c_core = ctypes.CDLL(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'native', 'sandtris_c_core.so'))
 _c_core.c_step_sand.argtypes = [np.ctypeslib.ndpointer(dtype=np.uint8, ndim=2, flags='C_CONTIGUOUS')]
 
 # ----- Original Sandtris Game Constants -----

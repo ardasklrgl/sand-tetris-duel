@@ -1,10 +1,10 @@
-"""Separate local 100-piece demo. Run: python web_demo.py (port 8766)."""
+"""Separate local 100-piece demo. Run: python -m app.web_demo (port 8766)."""
 import argparse
 import json
 import secrets
 from urllib.parse import urlparse
 
-import web_game as game
+from . import web_game as game
 
 LIMIT = 100
 

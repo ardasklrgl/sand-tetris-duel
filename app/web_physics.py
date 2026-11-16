@@ -5,7 +5,7 @@ import ctypes
 
 import numpy as np
 
-from sandtris_env_v10 import SandtrisEnv, Piece, GRID_WIDTH, GRID_HEIGHT, _c_core
+from .sandtris_env_v10 import SandtrisEnv, Piece, GRID_WIDTH, GRID_HEIGHT, _c_core
 
 PHYSICS_FRAME_LIMIT = 200
 PLAYBACK_FRAME_LIMIT = 90

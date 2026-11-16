@@ -8,8 +8,8 @@ import random
 
 import numpy as np
 
-from web_game import calculate_ai_action, load_weights, plan_fingerprint
-from web_physics import LiveEnv
+from app.web_game import calculate_ai_action, load_weights, plan_fingerprint
+from app.web_physics import LiveEnv
 
 
 def plan_seed(seed):
@@ -39,7 +39,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--count", type=int, default=20)
     parser.add_argument("--workers", type=int, default=min(4, os.cpu_count() or 1))
-    parser.add_argument("--output", type=Path, default=Path("precomputed_ai.json"))
+    parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[1] / "models" / "precomputed_ai.json")
     args = parser.parse_args()
     if not 1 <= args.count <= 1000 or args.workers < 1:
         parser.error("count must be 1–1000 and workers must be positive")

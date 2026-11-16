@@ -1,10 +1,10 @@
-"""Background-only night beach study. Run python web_beach.py, then open port 8771."""
+"""Background-only night beach study. Run python -m examples.web_beach, then open port 8771."""
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import argparse
 
-ROOT = Path(__file__).resolve().parent / 'design' / 'beach'
+ROOT = Path(__file__).resolve().parents[1] / 'design' / 'beach'
 
 class BeachHandler(SimpleHTTPRequestHandler):
     def do_GET(self):

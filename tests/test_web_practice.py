@@ -2,8 +2,8 @@ import base64
 import unittest
 from unittest.mock import patch
 
-from web_game import PRECOMPUTED_PLANS, LiveEnv, load_weights
-from web_practice import PracticeMatch
+from app.web_game import PRECOMPUTED_PLANS, LiveEnv, load_weights
+from app.web_practice import PracticeMatch
 
 
 class PracticeTests(unittest.TestCase):
@@ -13,7 +13,7 @@ class PracticeTests(unittest.TestCase):
         switched = match.set_mode('ai')
         for key in ('id', 'seed', 'turn', 'limit', 'boards', 'piece'):
             self.assertEqual(human[key], switched[key])
-        with patch('web_game.calculate_ai_action', return_value=0), patch('web_practice.time.perf_counter', side_effect=[1, 1.2]):
+        with patch('app.web_game.calculate_ai_action', return_value=0), patch('app.web_practice.time.perf_counter', side_effect=[1, 1.2]):
             ai = match.move(1)
         self.assertAlmostEqual(ai['average_think_ms'], 200)
         self.assertEqual(ai['ai_moves'], 1)
@@ -25,7 +25,7 @@ class PracticeTests(unittest.TestCase):
     def test_ai_timing_tracks_last_and_average_policy_calculation(self):
         match = PracticeMatch(123, load_weights(), 2, 'ai')
         self.assertEqual(match.state()['average_think_ms'], 0)
-        with patch('web_game.calculate_ai_action', return_value=0), patch('web_practice.time.perf_counter', side_effect=[1, 1.2, 2, 2.4]):
+        with patch('app.web_game.calculate_ai_action', return_value=0), patch('app.web_practice.time.perf_counter', side_effect=[1, 1.2, 2, 2.4]):
             first = match.move(0)
             second = match.move(1)
         self.assertAlmostEqual(first['last_think_ms'], 200)
@@ -38,7 +38,7 @@ class PracticeTests(unittest.TestCase):
         reference = LiveEnv()
         reference.reset(seed=123)
         reference.place(35, 0, 3)
-        with patch('web_game.calculate_ai_action', side_effect=AssertionError('Human practice calculated AI')):
+        with patch('app.web_game.calculate_ai_action', side_effect=AssertionError('Human practice calculated AI')):
             result = match.move(0, placement=dict(x=35, y=0, rotation=1))
         self.assertEqual(result['boards']['human']['world'], reference.world.tolist())
         self.assertEqual(result['result'], 'Practice complete')

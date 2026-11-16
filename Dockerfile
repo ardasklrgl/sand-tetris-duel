@@ -12,15 +12,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev \
 COPY requirements-web.txt .
 RUN pip install --no-cache-dir -r requirements-web.txt
 
-COPY sandtris_c_core.c .
-RUN gcc -O3 -std=c99 -shared -fPIC sandtris_c_core.c -o sandtris_c_core.so
+COPY native/sandtris_c_core.c ./native/
+RUN gcc -O3 -std=c99 -shared -fPIC native/sandtris_c_core.c -o native/sandtris_c_core.so
 
-COPY sandtris_env_v10.py sandtris_parameterized_bot.py sandtris_lookahead_bot.py \
-     web_physics.py web_game.py web_demo.py web_flow.py web_accounts.py web_practice.py web_hints.py \
-     best_clipped_weights_run2.npy precomputed_ai.json ./
+COPY app/ ./app/
+COPY models/ ./models/
 COPY web/ ./web/
 COPY design/beach/assets/ ./design/beach/assets/
 RUN mkdir -p /app/data
 
 EXPOSE 10000
-CMD ["sh", "-c", "exec python web_flow.py --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "exec python -m app.web_flow --host 0.0.0.0 --port ${PORT}"]

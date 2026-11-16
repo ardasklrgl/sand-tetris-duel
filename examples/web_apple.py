@@ -1,7 +1,7 @@
-"""Playable apple design direction. Run: python web_apple.py."""
+"""Playable apple design direction. Run: python -m examples.web_apple."""
 import argparse
 from urllib.parse import urlparse
-import web_demo as original
+from app import web_demo as original
 
 TITLE = 'Sand Tetris Duel · Studio'
 PORT = 8769
