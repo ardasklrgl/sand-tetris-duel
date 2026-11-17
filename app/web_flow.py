@@ -639,7 +639,7 @@ def practice_document(user):
     document = document.replace('<p class="help">', '<p id="practice-help" class="help">', 1)
     document = document.replace('<script src="/demo.js"></script>', '<script src="/practice.js"></script>')
     document = document.replace('<a href="/practice">', '<a href="/practice" aria-current="page">', 1)
-    document = re.sub(r'(<div class="settings">.*?</div>)', r'\1<div class="practice-mode"><label for="piece-limit">Pieces</label><input id="piece-limit" type="number" min="1" max="1000000" value="100"><button id="ai-mode" type="button" aria-pressed="false">AI mode</button></div><p class="practice-note">Changing the piece count starts a fresh game.</p>', document, count=1, flags=re.S)
+    document = re.sub(r'(<div class="settings">.*?</div>)', r'\1<div class="practice-mode"><label for="piece-limit">Pieces</label><input id="piece-limit" type="number" min="1" max="1000000" value="100"><button id="ai-mode" type="button" aria-pressed="false">AI mode</button><button id="evil-mode" type="button" aria-pressed="false" title="Choose the hardest next piece using the trained evaluator. Changes apply after the current piece.">Evil mode</button></div><p class="practice-note">Changing the piece count starts a fresh game.</p>', document, count=1, flags=re.S)
     for index, pulse in [(1, 'clear-pulse'), (2, 'grain-pulse')]:
         document = document.replace(f"  watchStat('ai-stats', {index}, '{pulse}');", '')
     style = '''.practice-page main{max-width:608px}.practice-page .site-nav{margin-left:0;justify-content:flex-start;flex-basis:100%}.practice-page .boards{grid-template-columns:minmax(0,340px);justify-content:center}.practice-page .match-panel{max-width:520px;margin-left:auto;margin-right:auto}.practice-page .match-stats{grid-template-columns:1fr}.practice-page .stats{grid-template-columns:repeat(4,1fr)}.practice-mode{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:18px;font-size:11px;color:var(--muted)}.practice-mode input{width:90px;height:36px}.practice-mode button{color:#101116;background:var(--ai);border:0;height:36px;min-width:114px}.practice-mode button[aria-pressed="true"]{background:var(--you)}.practice-mode button:hover:enabled{filter:brightness(.86)}.practice-page .stats span{min-width:0}.practice-page.is-practice-ai .human h2,.practice-page.is-practice-ai .human .stats b{color:var(--ai)}.practice-page.is-practice-ai .stats{grid-template-columns:repeat(6,minmax(0,1fr))}.practice-page.is-practice-ai progress::-webkit-progress-value{background:var(--ai)}.practice-page.is-practice-ai progress::-moz-progress-bar{background:var(--ai)}@media(max-width:480px){.practice-page.is-practice-ai .stats{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:14px}}.practice-note{text-align:center;color:var(--muted);font-size:10px;margin:12px 0 0}.practice-page .help{line-height:1.7}.practice-page .settings{flex-wrap:wrap}.practice-page header{flex-wrap:wrap}'''
@@ -833,17 +833,25 @@ class PreviewHandler(original.DemoHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path in {'/api/practice/new', '/api/practice/move', '/api/practice/mode'}:
+        if path in {'/api/practice/new', '/api/practice/move', '/api/practice/mode', '/api/practice/evil'}:
             try:
                 data = self.read_account_data()
-                if path.endswith('/move') or path.endswith('/mode'):
+                if path.endswith(('/move', '/mode', '/evil')):
                     match = self.get_match(data.get('id'))
                     if not isinstance(match, PracticeMatch):
                         raise ValueError('This is not a practice session.')
-                    self.respond(200, match.set_mode(data.get('mode')) if path.endswith('/mode')
-                                 else match.move(data.get('turn'), placement=data.get('placement')))
+                    if path.endswith('/evil'):
+                        result = match.set_evil(data.get('evil'))
+                    elif path.endswith('/mode'):
+                        result = match.set_mode(data.get('mode'))
+                    else:
+                        result = match.move(data.get('turn'), placement=data.get('placement'))
+                    self.respond(200, result)
                     return
                 seed, limit, mode = data.get('seed'), data.get('limit', 100), data.get('mode', 'human')
+                evil = data.get('evil', False)
+                if type(evil) is not bool:
+                    raise ValueError('Choose a valid Evil mode setting.')
                 if seed is not None and (type(seed) is not int or not 0 <= seed < 2**32):
                     raise ValueError('Invalid seed.')
                 if type(limit) is not int or not 1 <= limit <= 1000000 or mode not in ('human', 'ai'):
@@ -859,7 +867,7 @@ class PreviewHandler(original.DemoHandler):
                         previous.close()
                     if len(self.server.matches) >= 16:
                         self.server.matches.pop(next(iter(self.server.matches))).close()
-                    match = PracticeMatch(self.server.next_seed() if seed is None else seed, self.server.weights, limit, mode)
+                    match = PracticeMatch(self.server.next_seed() if seed is None else seed, self.server.weights, limit, mode, evil)
                     self.on_new_match(match)
                     self.server.matches[match.id] = match
                 self.respond(200, match.state())

@@ -13,7 +13,7 @@
   const modeButtons = document.createElement('div');
   modeButtons.className = 'polish-mode-buttons';
   button.before(modeButtons);
-  modeButtons.append(button, mode);
+  modeButtons.append(button, mode, document.getElementById('evil-mode'));
   const canvas = document.createElement('canvas');
   canvas.width = 340; canvas.height = 600;
   canvas.className = 'polish-hints-canvas';

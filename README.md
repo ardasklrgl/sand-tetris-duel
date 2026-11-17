@@ -38,6 +38,7 @@ Signed in matches contribute to your record and the leaderboard when they finish
 - Choose how many pieces to play.
 - Switch between human and AI mode on the same board, without starting over.
 - Let the AI play at its own pace, or pause to inspect the position.
+- Toggle **Evil mode** in either human or AI practice: it searches all 28 shape/color combinations and gives you the piece with the lowest best-placement score under the full trained evaluator. Changes apply after the current piece. It adapts to your board, so replaying an attack requires the same moves as well as the same seed.
 - Toggle **AI hints** to see a heatmap along the pile. Stronger placements glow more brightly; weaker ones fade into the background. Hints are available during human play and while AI mode is paused, and are excluded from Duel.
 - Track grains, clears, pile height, board averages and move timings in the stats panels.
 

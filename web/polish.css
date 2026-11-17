@@ -86,7 +86,7 @@ body.is-polished .polish-paused .polish-resume,body.is-polished .polish-paused .
 
 
 .practice-mode{flex-wrap:wrap}
-.polish-mode-buttons{display:inline-flex;gap:8px;align-items:center;flex:none}
+.polish-mode-buttons{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:100%}
 body.is-polished .practice-mode #polish-ai-hints{min-width:90px;background:#000;color:var(--ink);border:1px solid var(--line)}
 body.is-polished .practice-mode #polish-ai-hints[aria-pressed=true]{background:var(--ai);color:#101116}
 body.is-polished .practice-mode #polish-ai-hints[aria-pressed=true]:hover{background:#292b36;color:#101116}
@@ -96,3 +96,9 @@ body.is-polished .practice-mode #polish-ai-hints[aria-pressed=true]:hover{backgr
 .polish-hint-notice:empty{display:none}
 .polish-paused{z-index:2}
 body.is-polished .duel-stage .result button.polish-close:hover{background:transparent;color:var(--muted)}
+
+/* Evil is independent of the rotating player palette. */
+body.is-polished .practice-mode #evil-mode{background:#000;color:var(--ink);border:1px solid var(--line);transition:background .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease,text-shadow .18s ease}
+body.is-polished .practice-mode #evil-mode:hover{background:#292b36}
+body.is-polished .practice-mode #evil-mode[aria-pressed=true]{color:#ff7078;border-color:#ff7078;box-shadow:0 0 12px #ff465433;text-shadow:0 0 8px #ff465466}
+body.is-polished .practice-mode #evil-mode:focus-visible{outline:2px solid currentColor;outline-offset:3px}

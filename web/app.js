@@ -229,7 +229,7 @@ async function newMatch(random = false) {
   for (const id of ['seed', 'restart', 'new']) $(id).disabled = true;
   try {
     state = await api(practice ? '/api/practice/new' : '/api/new', {seed, previous_id: state?.id,
-      ...(practice ? {limit, mode: $('ai-mode').getAttribute('aria-pressed') === 'true' ? 'ai' : 'human'} : {})});
+      ...(practice ? {limit, evil: $('evil-mode').getAttribute('aria-pressed') === 'true', mode: $('ai-mode').getAttribute('aria-pressed') === 'true' ? 'ai' : 'human'} : {})});
     $('seed').value = state.seed;
     const url = new URL(location.href); url.searchParams.set('seed', state.seed); history.replaceState(null, '', url);
     paused = false; message = ''; spawn(); $('human-board').focus({preventScroll: true});

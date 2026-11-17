@@ -4,10 +4,13 @@ import threading
 import time
 import numpy as np
 from . import web_game as game
+from .web_evil import apply_evil_piece
 
 
 class PracticeMatch:
-    def __init__(self, seed, weights, limit, mode):
+    def __init__(self, seed, weights, limit, mode, evil=False):
+        if type(evil) is not bool:
+            raise ValueError('Choose a valid Evil mode setting.')
         self.id = secrets.token_urlsafe(18)
         self.seed, self.weights, self.limit, self.mode = seed, weights, limit, mode
         self.lock = threading.RLock()
@@ -18,6 +21,20 @@ class PracticeMatch:
         self.turn, self.result, self.closed = 0, None, False
         self.last_think_ms = self.total_think_ms = 0.0
         self.ai_moves = 0
+        self.evil = evil
+        self.evil_rng = np.random.default_rng(np.random.SeedSequence([seed, 9863]))
+        if evil:
+            with game.ENGINE_LOCK:
+                apply_evil_piece(self.env, self.weights, self.evil_rng)
+
+    def set_evil(self, enabled):
+        if type(enabled) is not bool:
+            raise ValueError('Choose a valid Evil mode setting.')
+        with self.lock:
+            if self.closed or self.result:
+                raise ValueError('This practice session has finished.')
+            self.evil = enabled
+            return self.state()
 
     def set_mode(self, mode):
         if mode not in ('human', 'ai'):
@@ -35,7 +52,7 @@ class PracticeMatch:
     def state(self):
         with self.lock:
             board = dict(world=self.env.world.tolist(), done=bool(self.env.done), stats=self.stats.serialize(self.env))
-            return dict(id=self.id, seed=self.seed, turn=self.turn, limit=self.limit, mode=self.mode,
+            return dict(id=self.id, seed=self.seed, turn=self.turn, limit=self.limit, mode=self.mode, evil=self.evil,
                         result=self.result, ready=not self.closed and not self.result, error=None,
                         last_think_ms=self.last_think_ms,
                         ai_moves=self.ai_moves,
@@ -67,6 +84,8 @@ class PracticeMatch:
                     x, y, rotation = placement['x'], placement['y'], (-placement['rotation']) % 4
                 before = int(np.count_nonzero(env.world))
                 info, frames = env.place(x, y, rotation, capture=True)
+                if self.evil and not env.done and self.turn + 1 < self.limit:
+                    apply_evil_piece(env, self.weights, self.evil_rng)
             self.env = env
             if self.mode == 'ai':
                 self.last_think_ms = think_ms

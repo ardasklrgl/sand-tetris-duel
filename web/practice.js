@@ -2,6 +2,7 @@
 sandSpeed = 1.5;
 let aiTimer;
 let practiceModeRequested = false;
+let evilModeRequested = null;
 function formatMoveTime(ms) {
   if (ms < 1000) return `${Math.round(ms)}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
@@ -14,6 +15,12 @@ updateUI = function () {
     switchPracticeMode();
     return;
   }
+  if (evilModeRequested !== null && !busy) {
+    const enabled = evilModeRequested;
+    evilModeRequested = null;
+    switchEvilMode(enabled);
+    return;
+  }
   const ai = state?.mode === 'ai';
   document.body.classList.toggle('is-paused', paused);
   document.body.classList.toggle('is-practice-ai', ai);
@@ -23,6 +30,8 @@ updateUI = function () {
   for (const id of ['left', 'right', 'rotate', 'down', 'drop']) $(id).disabled = !controllable();
   for (const id of ['seed', 'restart', 'new', 'piece-limit', 'play-again']) $(id).disabled = busy;
   $('ai-mode').disabled = !state;
+  $('evil-mode').disabled = !state || !!state.result;
+  if (!busy && evilModeRequested === null && state) $('evil-mode').setAttribute('aria-pressed', String(state.evil));
   $('pause').disabled = !state || !!state.result;
   $('pause').textContent = paused ? 'Resume' : 'Pause';
   $('practice-help').textContent = ai ? 'The AI plays at its own pace.' : 'Arrow keys or WASD: move, rotate, soft drop · Space: drop · P: pause';
@@ -79,6 +88,25 @@ $('ai-mode').onclick = () => {
   $('ai-mode').textContent = ai ? 'Practice mode' : 'AI mode';
   practiceModeRequested = true;
   clearHeld();
+  updateUI();
+};
+async function switchEvilMode(enabled) {
+  busy = true;
+  clearHeld();
+  updateUI();
+  try {
+    state = await api('/api/practice/evil', {id: state.id, evil: enabled});
+    message = '';
+  } catch (error) {
+    message = error.message;
+  } finally {
+    busy = false;
+    updateUI();
+  }
+}
+$('evil-mode').onclick = () => {
+  evilModeRequested = $('evil-mode').getAttribute('aria-pressed') !== 'true';
+  $('evil-mode').setAttribute('aria-pressed', String(evilModeRequested));
   updateUI();
 };
 $('piece-limit').onchange = () => newMatch();
