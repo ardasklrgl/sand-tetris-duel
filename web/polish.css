@@ -71,25 +71,33 @@ body.is-polished.practice-page .stats{grid-template-columns:repeat(4,minmax(0,1f
 body.is-practice-ai .polish-detail-panel dd{color:var(--ai)}
 .polish-detail-left{grid-column:1;grid-row:1}.polish-detail-right{grid-column:3;grid-row:1}
 body.is-resuming *,body.is-resuming *::before,body.is-resuming *::after{transition:none!important}
-@media(max-width:700px){body.is-polished.practice-page .boards{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}body.is-polished.practice-page .boards>.human{grid-column:1/-1;grid-row:1;width:min(100%,340px);justify-self:center}.polish-detail-left{grid-column:1;grid-row:2}.polish-detail-right{grid-column:2;grid-row:2}}
+@media(max-width:700px){
+  body.is-polished.practice-page .boards{grid-template-columns:minmax(0,340px);justify-content:center}
+  body.is-polished.practice-page .boards>.human{grid-column:1}
+  body.is-polished.practice-page .polish-detail-panel{display:none}
+}
 @supports not (backdrop-filter:blur(1px)){body.is-polished .duel-stage .result{background:#111219f7}}
 
 
 body.is-polished button,body.is-polished button:hover,body.is-polished button:active,body.is-polished .panel-cta,body.is-polished .panel-cta:hover{transform:none!important;box-shadow:none!important}
 
 body.is-polished:not(.is-paused) .controls button:disabled{opacity:1}
-body.is-polished .controls button:hover,body.is-polished #drop:hover,body.is-polished #ai-mode:hover,body.is-polished .auth-form .auth-submit:hover:enabled,body.is-polished .site-panel a.panel-cta[href^="/login"]:hover,body.is-polished .auth-submit:hover,body.is-polished .panel-cta:hover,body.is-polished .duel-stage .result button:hover{background:#292b36;filter:none;box-shadow:none}
+body.is-polished .controls button:enabled:hover,body.is-polished #drop:enabled:hover,body.is-polished .auth-form .auth-submit:hover:enabled,body.is-polished .site-panel a.panel-cta[href^="/login"]:hover,body.is-polished .auth-submit:hover,body.is-polished .panel-cta:hover,body.is-polished .duel-stage .result button:hover{background:#292b36;filter:none;box-shadow:none}
 
 
-body.is-polished #drop:hover,body.is-polished #ai-mode:hover,body.is-polished .auth-form .auth-submit:hover:enabled,body.is-polished .site-panel a.panel-cta[href^="/login"]:hover,body.is-polished .duel-stage .result button:not(.polish-secondary):hover,body.is-polished #polish-back-to-game:hover{background:#292b36;color:#101116}
+body.is-polished #drop:enabled:hover,body.is-polished .auth-form .auth-submit:hover:enabled,body.is-polished .site-panel a.panel-cta[href^="/login"]:hover,body.is-polished .duel-stage .result button:not(.polish-secondary):hover,body.is-polished #polish-back-to-game:hover{background:#292b36;color:#101116}
 body.is-polished .polish-paused .polish-resume,body.is-polished .polish-paused .polish-resume:hover{background:#000;color:var(--ink);border:0}
 
 
 .practice-mode{flex-wrap:wrap}
 .polish-mode-buttons{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:100%}
 body.is-polished .practice-mode #polish-ai-hints{min-width:90px;background:#000;color:var(--ink);border:1px solid var(--line)}
-body.is-polished .practice-mode #polish-ai-hints[aria-pressed=true]{background:var(--ai);color:#101116}
-body.is-polished .practice-mode #polish-ai-hints[aria-pressed=true]:hover{background:#292b36;color:#101116}
+body.is-polished .practice-mode #ai-mode{background:#000;color:var(--ink);border:1px solid var(--line)}
+body.is-polished .practice-mode :is(#ai-mode,#polish-ai-hints)[aria-pressed=true]{background:var(--ai);color:#101116}
+body.is-polished .practice-mode :is(#ai-mode,#polish-ai-hints,#evil-mode)[aria-pressed=false]:enabled:hover{background:#101116;border-color:#5c5f6b;filter:none}
+body.is-polished .practice-mode :is(#ai-mode,#polish-ai-hints)[aria-pressed=true]:enabled:hover{background:#292b36;filter:none}
+body.is-polished.practice-page:is(.is-paused,.is-practice-ai) .controls button:disabled{opacity:.4;pointer-events:none}
+body.is-polished .practice-mode #piece-limit{border-radius:10px}
 .board-frame .polish-hints-canvas{position:absolute;left:0;display:block;width:100%;height:auto;aspect-ratio:17/30;background:transparent!important;border:0!important;pointer-events:none;z-index:1;image-rendering:auto}
 .polish-hint-color{position:absolute;visibility:hidden;color:var(--ai);pointer-events:none}
 .polish-hint-notice{display:block;font:10px/1.5 var(--mono);color:var(--muted);text-align:center}

@@ -10,6 +10,15 @@ function formatMoveTime(ms) {
 }
 updateUI = function () {
   clearTimeout(aiTimer);
+  if (queuedPracticeRestart !== null && !busy) {
+    const random = queuedPracticeRestart;
+    queuedPracticeRestart = null;
+    // The new match reads the mode toggles directly.
+    practiceModeRequested = false;
+    evilModeRequested = null;
+    newMatch(random);
+    return;
+  }
   if (practiceModeRequested && !busy) {
     practiceModeRequested = false;
     switchPracticeMode();
@@ -28,7 +37,8 @@ updateUI = function () {
   $('status').textContent = message || state?.error || '';
   $('status').hidden = !$('status').textContent;
   for (const id of ['left', 'right', 'rotate', 'down', 'drop']) $(id).disabled = !controllable();
-  for (const id of ['seed', 'restart', 'new', 'piece-limit', 'play-again']) $(id).disabled = busy;
+  for (const id of ['seed', 'piece-limit', 'play-again']) $(id).disabled = busy;
+  for (const id of ['restart', 'new']) $(id).disabled = startingMatch;
   $('ai-mode').disabled = !state;
   $('evil-mode').disabled = !state || !!state.result;
   if (!busy && evilModeRequested === null && state) $('evil-mode').setAttribute('aria-pressed', String(state.evil));
@@ -59,7 +69,6 @@ async function switchPracticeMode() {
   } catch (error) {
     message = error.message;
     $('ai-mode').setAttribute('aria-pressed', String(state.mode === 'ai'));
-    $('ai-mode').textContent = state.mode === 'ai' ? 'Practice mode' : 'AI mode';
   } finally {
     busy = false;
     updateUI();
@@ -70,7 +79,10 @@ async function playAI() {
   busy = true;
   updateUI();
   try {
-    const next = await api('/api/practice/move', {id: state.id, turn: state.turn});
+    const next = await api('/api/practice/move', {
+      id: state.id, turn: state.turn,
+      hints: $('polish-ai-hints')?.getAttribute('aria-pressed') === 'true',
+    });
     startSandAnimation(next);
     state = next;
     delete state.frames;
@@ -85,7 +97,6 @@ async function playAI() {
 $('ai-mode').onclick = () => {
   const ai = $('ai-mode').getAttribute('aria-pressed') !== 'true';
   $('ai-mode').setAttribute('aria-pressed', String(ai));
-  $('ai-mode').textContent = ai ? 'Practice mode' : 'AI mode';
   practiceModeRequested = true;
   clearHeld();
   updateUI();

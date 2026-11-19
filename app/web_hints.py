@@ -1,5 +1,6 @@
 """Read-only placement evaluation for the Practice hint overlay."""
 import numpy as np
+from .sandtris_env_v10 import BLOCK_GRAIN, GRID_WIDTH, rotate_shape
 from .sandtris_parameterized_bot import extract_features
 from .web_game import ENGINE_LOCK
 
@@ -24,13 +25,15 @@ def placement_hints(match, turn, rotation):
     # Combine valid physical placements across every rotation. Clamped actions
     # at the right wall are deduplicated rather than counted several times.
     by_column = {}
+    columns = GRID_WIDTH // BLOCK_GRAIN
+    max_columns = [
+        columns - 1 - max(x for x, _ in rotate_shape(snapshot.piece.base_shape, rotation))
+        for rotation in range(4)
+    ]
     for action, score in cache[1].items():
-        selected_rotation, column = divmod(action, 17)
-        piece = snapshot.piece.clone(snapshot.world)
-        piece.set_rotation(selected_rotation)
-        width = (max(x for x, _ in piece.shape) + 1) * 5
-        x = min(column * 5, 85 - width)
-        by_column.setdefault(x // 5, {})[selected_rotation] = score
+        selected_rotation, column = divmod(action, columns)
+        column = min(column, max_columns[selected_rotation])
+        by_column.setdefault(column, {})[selected_rotation] = score
     values = [dict(column=column, x=column * 5,
                    score=float(np.mean(list(scores.values()))), rotations=len(scores))
               for column, scores in sorted(by_column.items())]

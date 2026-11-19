@@ -5,6 +5,7 @@ import time
 import numpy as np
 from . import web_game as game
 from .web_evil import apply_evil_piece
+from .web_hints import placement_hints
 
 
 class PracticeMatch:
@@ -60,7 +61,7 @@ class PracticeMatch:
                         piece=dict(shape=self.env.piece.base_shape, color=self.env.piece.color_idx),
                         boards=dict(human=board, ai=board))
 
-    def move(self, turn, action=None, placement=None):
+    def move(self, turn, action=None, placement=None, *, hints=False):
         with self.lock:
             if self.closed or self.result:
                 raise ValueError('This practice session has finished.')
@@ -99,4 +100,6 @@ class PracticeMatch:
                 self.result = 'Practice complete'
             state = self.state()
             state['frames'] = dict(human=frames, ai=[])
+            if hints and not self.result:
+                state['hints'] = placement_hints(self, self.turn, 0)
             return state

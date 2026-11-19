@@ -845,7 +845,8 @@ class PreviewHandler(original.DemoHandler):
                     elif path.endswith('/mode'):
                         result = match.set_mode(data.get('mode'))
                     else:
-                        result = match.move(data.get('turn'), placement=data.get('placement'))
+                        result = match.move(data.get('turn'), placement=data.get('placement'),
+                                            hints=data.get('hints') is True)
                     self.respond(200, result)
                     return
                 seed, limit, mode = data.get('seed'), data.get('limit', 100), data.get('mode', 'human')

@@ -5,6 +5,7 @@ const W = 85, H = 150, SCALE = 4;
 const PALETTE = [[0, 0, 0], [200, 100, 100], [100, 100, 200], [100, 200, 100], [200, 200, 100]];
 const COLORS = PALETTE.map(([r, g, b]) => `rgb(${r},${g},${b})`);
 let state = null, piece = null, busy = false, pendingDrop = false, paused = false;
+let queuedPracticeRestart = null, startingMatch = false;
 let pollTimer, epoch = 0, message = '', animation = null;
 let gravityTimer = 0, horizontalTimer = 0, downTimer = 0, lastTime = 0;
 let sandSpeed = 1, instantSettle = false;
@@ -215,7 +216,10 @@ function schedulePoll() {
 }
 
 async function newMatch(random = false) {
-  if (busy) return;
+  if (busy) {
+    if (practice && !startingMatch) queuedPracticeRestart = random;
+    return;
+  }
   const raw = $('seed').value;
   const seed = random || raw === '' ? null : Number(raw);
   if (seed !== null && (!Number.isInteger(seed) || seed < 0 || seed >= 2 ** 32)) {
@@ -225,6 +229,7 @@ async function newMatch(random = false) {
   if (practice && (!Number.isInteger(limit) || limit < 1 || limit > 1000000)) {
     message = 'Choose a piece count from 1 to 1,000,000.'; updateUI(); return;
   }
+  startingMatch = true;
   epoch++; clearTimeout(pollTimer); clearHeld(); animation = null; busy = true; message = 'Loading…'; updateUI();
   for (const id of ['seed', 'restart', 'new']) $(id).disabled = true;
   try {
@@ -235,8 +240,7 @@ async function newMatch(random = false) {
     paused = false; message = ''; spawn(); $('human-board').focus({preventScroll: true});
   } catch (error) { message = error.message; paused = true; }
   finally {
-    busy = false; updateUI(); schedulePoll();
-    for (const id of ['seed', 'restart', 'new']) $(id).disabled = false;
+    startingMatch = false; busy = false; updateUI(); schedulePoll();
   }
 }
 

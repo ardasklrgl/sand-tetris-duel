@@ -89,7 +89,12 @@
     }
     if (requested !== current && now >= retryAt) {
       data = null; clear();
-      requestHints(current);
+      if (state.hints?.id === state.id && state.hints.turn === state.turn) {
+        requested = current;
+        data = state.hints;
+      } else {
+        requestHints(current);
+      }
     }
     if (!data || `${data.id}:${data.turn}` !== current || (animation && state.mode === 'human' && !paused)) {
       if (painted) clear();
