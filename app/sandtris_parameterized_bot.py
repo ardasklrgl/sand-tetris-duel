@@ -1,7 +1,8 @@
 import numpy as np
 import ctypes
 import os
-from .sandtris_env_v10 import SandtrisEnv, GRID_WIDTH, GRID_HEIGHT, BLOCK_GRAIN, GRAIN_SIZE, COLORS
+from functools import lru_cache
+from .sandtris_env_v10 import SandtrisEnv, GRID_WIDTH, GRID_HEIGHT, BLOCK_GRAIN, GRAIN_SIZE, COLORS, rotate_shape
 
 class EvalFrontierResult(ctypes.Structure):
     _fields_ = [
@@ -109,67 +110,57 @@ TRUE_BOUNDS = [
 # Indices of heavy-tailed volume/mass features to log1p scale in 'engineered' mode
 LOG_FEATURES = {0, 8, 9, 10, 14, 15, 18, 19, 22, 23}
 
+@lru_cache(maxsize=32)
+def placement_geometry(base_shape):
+    """Pack each distinct drop once and map the original actions to its row."""
+    columns = GRID_WIDTH // BLOCK_GRAIN
+    rows = {}
+    action_rows, flat_x, flat_y, sizes = [], [], [], []
+    for rotation in range(4):
+        shape = rotate_shape(base_shape, rotation)
+        width = (max(x for x, _ in shape) + 1) * BLOCK_GRAIN
+        for column in range(columns):
+            x = min(column, (GRID_WIDTH - width) // BLOCK_GRAIN)
+            key = tuple(sorted((x + bx, by) for bx, by in shape))
+            if key not in rows:
+                rows[key] = len(sizes)
+                for bx, by in key:
+                    for gx in range(BLOCK_GRAIN):
+                        for gy in range(BLOCK_GRAIN):
+                            flat_x.append(bx * BLOCK_GRAIN + gx)
+                            flat_y.append(by * BLOCK_GRAIN + gy)
+                sizes.append(len(key) * BLOCK_GRAIN ** 2)
+            action_rows.append(rows[key])
+    return (action_rows, (ctypes.c_int * len(flat_x))(*flat_x),
+            (ctypes.c_int * len(flat_y))(*flat_y), (ctypes.c_int * len(sizes))(*sizes))
+
+
 def extract_features(env, active_color, extraction_mode="clipped"):
-    """
-    Simulates all 68 drops and extracts features based on the chosen mode:
-    - clipped: 24 features (broken bounds, creates non-linear logic gates via clipping)
-    - linear: 24 features (true bounds, pure linear scaling)
-    - engineered: 27 features (true bounds, log1p scaling for mass features, +3 boolean flags)
-    - binned: 47 features (true bounds, log1p scaling, +23 categorical threshold flags)
-    """
-    num_block_cols = (GRID_WIDTH // BLOCK_GRAIN)
-    num_actions = 4 * num_block_cols
-    
-    flat_gx = []
-    flat_gy = []
-    num_grains_arr = []
-    
-    for action in range(num_actions):
-        rot_idx = action // num_block_cols
-        block_col = action % num_block_cols
-        
-        # Candidate evaluation must not draw from the match's piece stream.
-        sim_piece = env.piece.clone(env.world)
-        sim_piece.color_idx = active_color
-        sim_piece.set_rotation(rot_idx)
+    """Score drops with the requested feature normalization.
 
-        max_bx = max(bx for bx, _ in sim_piece.shape)
-        piece_pixel_width = (max_bx + 1) * BLOCK_GRAIN
-        safe_x = max(0, min(block_col * BLOCK_GRAIN, GRID_WIDTH - piece_pixel_width))
-        safe_x = (safe_x // BLOCK_GRAIN) * BLOCK_GRAIN
-
-        sim_piece.x = safe_x
-        sim_piece.y = 0
-        sim_piece.update_grains()
-        
-        gx = [g[0] for g in sim_piece.grains]
-        gy = [g[1] for g in sim_piece.grains]
-        num_grains_arr.append(len(gx))
-        flat_gx.extend(gx)
-        flat_gy.extend(gy)
-        
-    c_num_actions = ctypes.c_int(num_actions)
-    c_gx = (ctypes.c_int * len(flat_gx))(*flat_gx)
-    c_gy = (ctypes.c_int * len(flat_gy))(*flat_gy)
-    c_num_grains = (ctypes.c_int * len(num_grains_arr))(*num_grains_arr)
+    Duplicate rotations and wall-clamped actions share a simulation. All
+    original action IDs and their order are preserved for policy tie-breaking.
+    """
+    action_rows, c_gx, c_gy, c_num_grains = placement_geometry(tuple(env.piece.base_shape))
+    num_actions = len(c_num_grains)
     c_color_idx = ctypes.c_int(active_color)
     
     out_res_base = (EvalResult * num_actions)()
     out_res_front = (EvalFrontierResult * num_actions)()
     
     c_world = np.ascontiguousarray(env.world, dtype=np.uint8)
-    _c_core.simulate_all_actions_combined(c_world, c_num_actions, c_gx, c_gy, c_num_grains, c_color_idx, out_res_base, out_res_front)
+    _c_core.simulate_all_actions_combined(c_world, num_actions, c_gx, c_gy, c_num_grains, c_color_idx, out_res_base, out_res_front)
     
     valid_actions = []
     features_list = []
     
-    for a in range(num_actions):
-        if not out_res_base[a].valid or not out_res_front[a].valid:
+    for action, row in enumerate(action_rows):
+        if not out_res_base[row].valid or not out_res_front[row].valid:
             continue
             
-        valid_actions.append(a)
-        rb = out_res_base[a]
-        rf = out_res_front[a]
+        valid_actions.append(action)
+        rb = out_res_base[row]
+        rf = out_res_front[row]
         
         # Feature array allocation
         if extraction_mode == "binned":
